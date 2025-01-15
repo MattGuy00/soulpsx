@@ -1,18 +1,16 @@
 #include "Bios.h"
+#include "Bus.h"
 #include "Instruction.h"
 
-#include <cstdint>
 #include <iostream>
-#include <fstream>
-#include <array>
 #include <bitset>
 
 int main() {
 	Bios bios { "scph1001.bin" };   
-
+	Bus bus { bios };
 
 	Instruction instr { bios.fetch_32(0)};
-	std::cout << std::hex << "lui " <<  instr.rt() << ", " << instr.imm16() << '\n';
+	std::cout << std::hex << instr << '\n';
 	
 	std::cout << std::bitset<32>{bios.fetch_32(0)} << '\n';
 
