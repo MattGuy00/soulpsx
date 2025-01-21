@@ -1,5 +1,6 @@
 #include "Bios.h"
 #include <cstdint>
+#include <span>
 
 uint32_t Bios::fetch_32(int offset) {
 	uint32_t data {};
@@ -9,4 +10,8 @@ uint32_t Bios::fetch_32(int offset) {
 	data |= m_rom[offset + 3] << 24;
 
 	return data;
+}
+
+std::span<const std::byte> Bios::first_64k() {
+	return std::as_bytes(std::span{m_rom});
 }

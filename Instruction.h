@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
+#include <span>
 
 class Instruction {
 public:
@@ -10,10 +12,9 @@ public:
 		unknown,
 	};
 
-	explicit Instruction(uint32_t data)
-		: m_type { get_type(data >> 26) },
-		m_data { data }
-	{
+	explicit Instruction(std::span<const std::byte> data) {
+		memcpy(&m_data, data.data(), sizeof(int));
+		m_type = get_type(m_data >> 26);
 	}
 
 	uint32_t rs() { return (m_data >> 21) & 0b11111; }

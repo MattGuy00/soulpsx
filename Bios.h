@@ -4,6 +4,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <span>
 
 class Bios {
 public:
@@ -21,6 +22,9 @@ public:
 
 	// Fetches 32 bits of data from the rom
 	uint32_t fetch_32(int offset); 
+
+	// Returns the first 64k of bios rom	
+	std::span<const std::byte> first_64k();
 
 	std::array<std::uint8_t, m_bios_size> m_rom {};
 };
