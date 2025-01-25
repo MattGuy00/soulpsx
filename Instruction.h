@@ -7,14 +7,18 @@
 
 class Instruction {
 public:
-	enum class Type {
+	enum class Opcode {
+		ori,
+		sw,
 		lui,
+		lw,
+//		bne,
 		unknown,
 	};
 
 	explicit Instruction(std::span<const std::byte> data) {
 		memcpy(&m_data, data.data(), sizeof(int));
-		m_type = get_type(m_data >> 26);
+		m_opcode = get_opcode(m_data >> 26);
 	}
 
 	uint32_t rs() { return (m_data >> 21) & 0b11111; }
@@ -22,7 +26,9 @@ public:
 	uint32_t rd() { return (m_data >> 11) & 0b11111; }
 	uint32_t imm16() { return m_data & 0xffff; }
 
-	Type get_type(uint8_t identifier);
+	// Returns a type based on the 5 bit identifier
+	Opcode get_opcode(uint8_t identifier);
+	Opcode opcode() { return m_opcode; }
 	std::string_view type_string() const;
 	
 	friend std::ostream& operator<<(std::ostream& out, const Instruction& instruction) {
@@ -31,6 +37,6 @@ public:
 	}
 
 private:
-	Type m_type {};
+	Opcode m_opcode {};
 	uint32_t m_data {};
 };
