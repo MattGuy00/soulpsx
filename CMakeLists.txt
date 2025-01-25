@@ -9,6 +9,7 @@ add_executable(soulpsx
 	Bios.cpp 
 	Instruction.cpp
 	Memory.cpp
+	Cpu.cpp
 )
 
 target_compile_options(soulpsx PRIVATE -Wall -Wextra)
