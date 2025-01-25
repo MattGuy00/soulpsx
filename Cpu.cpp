@@ -35,8 +35,23 @@ void Cpu::fetch_decode_execute() {
 				break;
 			}
 			case sw: {
+				// Convert into an array of bytes 
+				// so it can be written into memory
+				uint32_t word { m_registers[instr.rt()] }	;
+				std::array<std::byte, 4> bytes {
+					static_cast<std::byte>((word >> 24) & 0xff),
+					static_cast<std::byte>((word >> 16) & 0xff),
+					static_cast<std::byte>((word >> 8) & 0xff),
+					static_cast<std::byte>(word & 0xff),
+				};
+
+				uint32_t base { m_registers[instr.rs()] };
+				// Offset is signed value
+				uint32_t e_addr { base + static_cast<int>(instr.imm16()) };
+				m_bus.memory.write_data(bytes, e_addr);
+
 				std::cout << instr << " " << instr.rt() << ", ";
-				std::cout << instr.rs() << ", " << instr.imm16() << '\n';
+				std::cout << e_addr << '\n';
 				break;
 			}
 			case lui: {
