@@ -1,9 +1,13 @@
 #pragma once
 
 #include "Bus.h"
+
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <string_view>
+
+class Instruction;
 
 class Cpu {
 public:
@@ -17,6 +21,8 @@ private:
 	Bus& m_bus;
 	int m_pc {};
 	std::array<uint32_t, 32> m_registers {};
+
+	void write_memory(std::span<const std::byte> data, uint32_t offset);
 
 	// Register names are from 
 	// https://psx-spx.consoledev.net/cpuspecifications/
@@ -58,9 +64,21 @@ private:
 		ra,
 	};
 	
+	void set_register(Register reg, uint32_t data);
+	uint32_t get_register_data(Register reg);
+	Register to_register(uint32_t reg_num) { return static_cast<Register>(reg_num); }
+	std::string_view register_name(Register reg);
+	
 	std::optional<Register> m_load_delay_register {};
 	std::optional<uint32_t> m_load_delay_data {};
 
 	std::optional<Register> m_load_completed_register {};
 	std::optional<uint32_t> m_load_completed_data {};
+
+
+	void op_lui(const Instruction& instruction);
+	void op_ori(const Instruction& instruction);
+	void op_sw(const Instruction& instruction);
+	void op_sll(const Instruction& instruction);
+	void op_addiu(const Instruction& instruction);
 };

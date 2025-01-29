@@ -9,27 +9,37 @@ class Instruction {
 public:
 	enum class Opcode {
 		ori,
-		sw,
+		addiu,
+		sll,
 		lui,
 		lw,
-//		bne,
+		sw,
 		unknown,
 	};
 
 	explicit Instruction(std::span<const std::byte> data) {
 		memcpy(&m_data, data.data(), sizeof(int));
-		m_opcode = get_opcode(m_data >> 26);
+		m_opcode = determine_opcode(m_data);
 	}
 
-	uint32_t rs() { return (m_data >> 21) & 0b11111; }
-	uint32_t rt() { return (m_data >> 16) & 0b11111; }
-	uint32_t rd() { return (m_data >> 11) & 0b11111; }
-	uint32_t imm16() { return m_data & 0xffff; }
+	uint32_t rs() const { return (m_data >> 21) & 0b11111; }
+	uint32_t rt() const { return (m_data >> 16) & 0b11111; }
+	uint32_t rd() const { return (m_data >> 11) & 0b11111; }
+
+	uint32_t imm16() const { return m_data & 0xffff; }
+	// Note the order of casts. This ensures that a sign extending instruction is 
+	// is generated.
+	uint32_t imm16_se() const { 
+		return static_cast<uint32_t>(static_cast<short>(m_data & 0xffff));
+	}
+
+	uint32_t sa() const { return (m_data >> 6) & 0b11111; }
 
 	// Returns a type based on the 5 bit identifier
-	Opcode get_opcode(uint8_t identifier);
-	Opcode opcode() { return m_opcode; }
+	Opcode opcode() const { return m_opcode; }
 	std::string_view type_string() const;
+
+	uint32_t data() const { return m_data; }
 	
 	friend std::ostream& operator<<(std::ostream& out, const Instruction& instruction) {
 		out << instruction.type_string();	
@@ -39,4 +49,6 @@ public:
 private:
 	Opcode m_opcode {};
 	uint32_t m_data {};
+
+	Instruction::Opcode determine_opcode(uint32_t data);
 };
