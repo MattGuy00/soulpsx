@@ -11,7 +11,7 @@ int main() {
 
 	Cpu cpu { bus };
 
-	memory.write_data(bios.first_64k());
+	memory.write_data(bios.read(0, 64 * 1024));
 	cpu.fetch_decode_execute();
 	
 	return 0;
