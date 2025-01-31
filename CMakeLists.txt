@@ -10,6 +10,7 @@ add_executable(soulpsx
 	Instruction.cpp
 	Memory.cpp
 	Cpu.cpp
+	Bus.cpp
 )
 
 target_compile_options(soulpsx PRIVATE -Wall -Wextra)
