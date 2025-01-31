@@ -1,13 +1,12 @@
 #pragma once
 
 #include "Bus.h"
+#include "Instruction.h"
 
 #include <array>
 #include <cstdint>
 #include <optional>
 #include <string_view>
-
-class Instruction;
 
 class Cpu {
 public:
@@ -19,9 +18,11 @@ public:
 
 private:
 	Bus& m_bus;
-	int m_pc {};
+	Instruction m_next_instruction { 0 };
+	uint32_t m_pc { 0xbfc00000 };
 	std::array<uint32_t, 32> m_registers {};
 
+	std::span<const std::byte> read_memory(uint32_t offset, uint32_t bytes);
 	void write_memory(std::span<const std::byte> data, uint32_t offset);
 
 	// Register names are from 
@@ -81,4 +82,5 @@ private:
 	void op_sw(const Instruction& instruction);
 	void op_sll(const Instruction& instruction);
 	void op_addiu(const Instruction& instruction);
+	void op_jump(const Instruction& instruction);
 };

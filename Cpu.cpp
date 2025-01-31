@@ -1,25 +1,18 @@
 #include "Cpu.h"
 #include "Instruction.h"
 #include <cstdint>
-#include <optional>
 
 void Cpu::fetch_decode_execute() {
 	for (;;) {
-		// If the last instruction was a load, we want to
-		// overwrite the register after this instruction
-		if (m_load_delay_data && m_load_delay_register) {
-			m_load_completed_register = m_load_delay_register;
-			m_load_completed_data = m_load_delay_data;
+		Instruction instruction { m_next_instruction };	
+		m_next_instruction = Instruction(read_memory(m_pc, 4));
 
-			m_load_delay_register.reset();
-			m_load_delay_data.reset();
-		}
-		
-		Instruction instruction { m_bus.memory.read_data(4, m_pc) };	
-		
-		for (auto byte : m_bus.memory.read_data(4, m_pc)) {
-			std::cout << std::hex << std::to_integer<int>(byte);
-		}
+		std::cout << std::hex << m_pc << ":";
+		std::cout << (instruction.data() >> 24);
+		std::cout << ((instruction.data() >> 16) & 0xff);
+		std::cout << ((instruction.data() >> 16) & 0xff);
+		std::cout << ((instruction.data() >> 8) & 0xff);
+		std::cout << (instruction.data() & 0xff);
 		std::cout << ": ";
 
 		m_pc += 4;
@@ -44,6 +37,10 @@ void Cpu::fetch_decode_execute() {
 			}
 			case lui: {
 				op_lui(instruction);
+				break;
+			}
+			case jump: {
+				op_jump(instruction);
 				break;
 			}
 			case unknown: {
@@ -74,11 +71,22 @@ uint32_t Cpu::get_register_data(Register reg) {
 	return m_registers[static_cast<uint32_t>(reg)];
 }
 
+std::span<const std::byte> Cpu::read_memory(uint32_t offset, uint32_t bytes) {
+	return m_bus.read_memory(offset, bytes);
+}
+
 void Cpu::write_memory(std::span<const std::byte> data, uint32_t address) {
 	// Skip writes outside of main memory for now
 	if (address > 0x1f000000) return;
 
 	m_bus.memory.write_data(data, address);
+}
+
+void Cpu::op_jump(const Instruction& instruction) {
+	uint32_t addr { instruction.jump_addr() << 2 };
+	m_pc = (m_pc & 0xf0000000) | addr;
+
+	std::cout << instruction << " " << m_pc << '\n';
 }
 
 void Cpu::op_addiu(const Instruction& instruction) {
