@@ -12,6 +12,7 @@ std::string_view Instruction::type_string() const {
 		case lui: return "lui";
 		case lw: return "lw";
 		case sw: return "sw";
+		case jump: return "jump";
 		default: return "unknown";
 	}
 }
@@ -26,6 +27,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 		case 0b001111: return lui;
 		case 0b110001: return lw;
 		case 0b101011: return sw;
+		case 0b000010: return jump;
 		// Special instruction. So we check secondary opcode
 		case 0b000000: {
 			uint8_t secondary_opcode { static_cast<uint8_t>(data & 0b111111) };
