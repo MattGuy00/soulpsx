@@ -8,10 +8,7 @@
 
 class Bios {
 public:
-	// Bios size is 512KB
-	static constexpr int m_bios_size { 512 * 1024 };
-
-	Bios(const std::string& bios_path) {
+	explicit Bios(const std::string& bios_path) {
 		std::ifstream bios_file { bios_path, std::ios::binary };
 		if (!bios_file.good()) {
 			std::cerr << "Bad BIOS file.\n";
@@ -19,12 +16,14 @@ public:
 
 		bios_file.read(reinterpret_cast<char*>(m_rom.data()), m_bios_size);
 	}
+	
+	std::span<const std::byte> read(uint32_t offset, uint32_t bytes) const;
 
-	// Fetches 32 bits of data from the rom
-	uint32_t fetch_32(int offset); 
-
-	// Returns the first 64k of bios rom	
-	std::span<const std::byte> first_64k();
-
-	std::array<std::uint8_t, m_bios_size> m_rom {};
+	uint32_t rom_size() const { return m_bios_size; }
+	uint32_t memory_region() const { return m_memory_region_start; }
+private:
+	// Bios size is 512KB
+	static constexpr uint32_t m_bios_size { 512 * 1024 };
+	std::array<std::byte, m_bios_size> m_rom {};
+	static constexpr uint32_t m_memory_region_start { 0xbfc00000 };
 };
