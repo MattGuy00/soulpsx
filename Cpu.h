@@ -83,4 +83,9 @@ private:
 	void op_sll(const Instruction& instruction);
 	void op_addiu(const Instruction& instruction);
 	void op_jump(const Instruction& instruction);
+	void op_or(const Instruction& instruction);
+	void op_mtc0(const Instruction& instruction);
+	void op_bne(const Instruction& instruction);
+	void op_addi(const Instruction& instruction);
+	void op_lw(const Instruction& instruction);
 };

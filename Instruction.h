@@ -8,13 +8,18 @@
 class Instruction {
 public:
 	enum class Opcode {
+		mtc0,
+
+		or_b,
 		ori,
 		addiu,
+		addi,
 		sll,
 		lui,
 		lw,
 		sw,
 		jump,
+		bne,
 		unknown,
 	};
 
@@ -38,7 +43,7 @@ public:
 
 	uint32_t sa() const { return (m_data >> 6) & 0b11111; }
 
-
+	// Returns a 26 bit index for the jump instruction
 	uint32_t jump_addr() const { return m_data & 0x3ffffff; }
 
 	// Returns a type based on the 5 bit identifier
