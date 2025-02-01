@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <span>
 
-class Memory {
+class Ram {
 
 public:
 	static constexpr int m_ram_size { 2048 * 1024 };
