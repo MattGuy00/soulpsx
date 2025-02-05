@@ -15,7 +15,6 @@ public:
 	}
 
 	void fetch_decode_execute();
-
 private:
 	Bus& m_bus;
 	Instruction m_next_instruction { 0 };
@@ -88,4 +87,6 @@ private:
 	void op_bne(const Instruction& instruction);
 	void op_addi(const Instruction& instruction);
 	void op_lw(const Instruction& instruction);
+	void op_sltu(const Instruction& instruction);
+	void op_addu(const Instruction& instruction);
 };

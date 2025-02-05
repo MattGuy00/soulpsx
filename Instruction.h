@@ -14,6 +14,8 @@ public:
 		ori,
 		addiu,
 		addi,
+		addu,
+		sltu,
 		sll,
 		lui,
 		lw,
@@ -29,7 +31,7 @@ public:
 	}
 
 	explicit Instruction(uint32_t data) : m_data { data }, m_opcode { determine_opcode(data) } {}
-
+	
 	uint32_t rs() const { return (m_data >> 21) & 0b11111; }
 	uint32_t rt() const { return (m_data >> 16) & 0b11111; }
 	uint32_t rd() const { return (m_data >> 11) & 0b11111; }

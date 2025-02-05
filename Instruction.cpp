@@ -10,6 +10,8 @@ std::string_view Instruction::type_string() const {
 		case ori: return "ori";
 		case addiu: return "addiu";
 		case addi: return "addi";
+		case addu: return "addu";
+		case sltu: return "sltu";
 		case sll: return "sll";
 		case lui: return "lui";
 		case lw: return "lw";
@@ -42,6 +44,8 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 			switch (secondary_opcode) {
 				case 0b000000: return sll;
 				case 0b100101: return or_b;
+				case 0b101011: return sltu;
+				case 0b100001: return addu;
 				default:
 					std::cout << "Special: ";
 					std::cout << std::bitset<6>{ secondary_opcode } << '\n';

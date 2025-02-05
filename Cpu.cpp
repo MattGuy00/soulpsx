@@ -1,5 +1,6 @@
 #include "Cpu.h"
 #include "Instruction.h"
+
 #include <cstdint>
 #include <limits>
 
@@ -8,7 +9,8 @@ void Cpu::fetch_decode_execute() {
 		Instruction instruction { m_next_instruction };	
 		m_next_instruction = Instruction(read_memory(m_pc, 4));
 
-		std::cout << std::hex << m_pc << ":";
+		// Print Hex virtual address and instruction
+		std::cout << std::hex << m_bus.to_physical_address(m_pc) << ":";
 		std::cout << (instruction.data() >> 24);
 		std::cout << ((instruction.data() >> 16) & 0xff);
 		std::cout << ((instruction.data() >> 8) & 0xff);
@@ -49,6 +51,14 @@ void Cpu::fetch_decode_execute() {
 				op_addi(instruction);
 				break;
 			}
+			case addu: {
+				op_addu(instruction);
+				break;
+			}
+			case sltu: {
+				op_sltu(instruction);
+				break;
+			}
 			case sll: {
 				op_sll(instruction);
 				break;
@@ -82,18 +92,6 @@ void Cpu::fetch_decode_execute() {
 				return;
 			}
 		}
-
-		/*if (m_load_completed_register && m_load_completed_data) {*/
-		/*	m_registers[static_cast<uint32_t>(m_load_completed_register.value())] = m_load_completed_data.value();*/
-		/**/
-		/*	m_load_completed_register.reset();*/
-		/*	m_load_completed_data.reset();*/
-		/*}*/
-		/**/
-		/*for (auto reg : m_registers) {*/
-		/*	std::cout << reg << ' ';*/
-		/*}*/
-		/*std::cout << '\n';*/
 	}
 }
 
@@ -112,8 +110,7 @@ std::span<const std::byte> Cpu::read_memory(uint32_t offset, uint32_t bytes) {
 void Cpu::write_memory(std::span<const std::byte> data, uint32_t address) {
 	// Skip writes outside of main memory for now
 	if (address > 0x1f000000) return;
-
-	m_bus.memory.write_data(data, address);
+	m_bus.write_memory(address, data);
 }
 
 uint32_t to_word(std::span<const std::byte> data) {
@@ -123,6 +120,28 @@ uint32_t to_word(std::span<const std::byte> data) {
 	word |= static_cast<uint8_t>(data[2]) << 8;
 	word |= static_cast<uint8_t>(data[3]);
 	return word;
+}
+
+void Cpu::op_addu(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(to_register(instruction.rs())) };
+	uint32_t rt_data { get_register_data(to_register(instruction.rt())) };
+
+	Register rd { to_register(instruction.rd()) };
+	set_register(rd, rs_data + rt_data);
+
+	std::cout << instruction << ' ' << register_name(rd) << ", ";
+	std::cout << std::dec << rs_data << " + " << rt_data << '\n';
+}
+
+void Cpu::op_sltu(const Instruction& instruction) {
+	Register rs { to_register(instruction.rs()) };
+	Register rt { to_register(instruction.rt()) };
+	Register rd { to_register(instruction.rd()) };
+	
+	set_register(rd, get_register_data(rs) < get_register_data(rt));
+
+	std::cout << instruction << ' ' << register_name(rd) << ", ";
+	std::cout << register_name(rs) << ", " << register_name(rt) << '\n';
 }
 
 void Cpu::op_lw(const Instruction& instruction) {
@@ -138,11 +157,10 @@ void Cpu::op_lw(const Instruction& instruction) {
 	m_load_delay_register = rt;
 	uint32_t word { to_word(read_memory(base + offset, 4)) };
 	m_load_delay_data = word;
-
 }
 
 void Cpu::op_addi(const Instruction& instruction) {
-	uint32_t rs_data { get_register_data(to_register(instruction.rs())) };
+	int rs_data { static_cast<int>(get_register_data(to_register(instruction.rs()))) };
 	long long result { rs_data + static_cast<int>(instruction.imm16_se()) };
 
 	// TODO: Don't modify register rt and throw an Integer Overflow exception
