@@ -8,7 +8,7 @@ add_executable(soulpsx
 	main.cpp 
 	Bios.cpp 
 	Instruction.cpp
-	Memory.cpp
+	Ram.cpp
 	Cpu.cpp
 	Bus.cpp
 )
