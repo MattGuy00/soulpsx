@@ -6,6 +6,7 @@
 std::string_view Instruction::type_string() const {
 	using enum Opcode;
 	switch (m_opcode) {
+		case andi: return "andi";
 		case or_b: return "or";
 		case ori: return "ori";
 		case addiu: return "addiu";
@@ -13,14 +14,16 @@ std::string_view Instruction::type_string() const {
 		case addu: return "addu";
 		case sltu: return "sltu";
 		case sll: return "sll";
+		case sh: return "sh";
+		case sb: return "sb";
 		case lui: return "lui";
 		case lw: return "lw";
 		case sw: return "sw";
 		case jump: return "jump";
+		case jal: return "jal";
+		case jr: return "jr";
 		case bne: return "bne";
-
 		case mtc0: return "mtc0";
-
 		default: return "unknown";
 	}
 }
@@ -30,13 +33,17 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 
 	using enum Opcode;
 	switch (primary_opcode) {
+		case 0b001100: return andi;
 		case 0b001101: return ori;
 		case 0b001001: return addiu;
 		case 0b001000: return addi;
 		case 0b001111: return lui;
 		case 0b100011: return lw;
 		case 0b101011: return sw;
+		case 0b101001: return sh;
+		case 0b101000: return sb;
 		case 0b000010: return jump;
+		case 0b000011: return jal;
 		case 0b000101: return bne;
 		// Special instruction. So we check secondary opcode
 		case 0b000000: {
@@ -46,6 +53,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b100101: return or_b;
 				case 0b101011: return sltu;
 				case 0b100001: return addu;
+				case 0b001000: return jr;
 				default:
 					std::cout << "Special: ";
 					std::cout << std::bitset<6>{ secondary_opcode } << '\n';
