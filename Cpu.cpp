@@ -140,16 +140,10 @@ void Cpu::write_memory(uint32_t address, std::span<const std::byte> data) {
 	m_bus.write_memory(address, data);
 }
 
-uint32_t to_word(std::span<const std::byte> data) {
+uint32_t to_32(std::span<const std::byte> data) {
 	uint32_t word {};
-	// Scuffed for now. For some reason memcpy copies the bytes in big endian...
-	int i = 24;
-	for (auto byte: data) {
-		word |= std::to_integer<uint32_t>(byte) << i;
-		i -= 8;
-	}
-	//std::memcpy(&word, data.data(), sizeof(word));
-	//
+	std::memcpy(&word, data.data(), sizeof(word));
+
 	return word;
 }
 
@@ -169,15 +163,12 @@ void Cpu::op_sb(const Instruction& instruction) {
 
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
 
-	uint8_t rt_data { static_cast<uint8_t>(get_register_data(instruction.rt())) };
-	std::array<uint8_t, 1> bytes {
-		rt_data
-	};
+	uint8_t result { static_cast<uint8_t>(get_register_data(instruction.rt())) };
 
-	write_memory(address, std::as_bytes(std::span{ bytes }));
+	write_memory(address, std::as_bytes(std::span{ &result, 1 }));
 
 	std::cout << instruction << ' ' << std::hex << m_bus.to_physical_address(address);
-	std::cout << ", " << std::dec << bytes[0] << '\n';
+	std::cout << ", " << std::dec << result << '\n';
 }
 
 void Cpu::op_andi(const Instruction& instruction) {
@@ -202,16 +193,12 @@ void Cpu::op_sh(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
 	 
-	uint16_t result { static_cast<uint16_t>(rt_data) };
-	std::array<std::byte, 2> bytes {
-		static_cast<std::byte>((result >> 8) & 0xff),
-		static_cast<std::byte>(result & 0xff),
-	};
-
-	write_memory(address, bytes);
 
 	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
 	std::cout << std::hex << address << '\n';
+
+	uint16_t result { static_cast<uint16_t>(rt_data) };
+	write_memory(address, std::as_bytes(std::span(&result, 1)));
 }
 
 void Cpu::op_addu(const Instruction& instruction) {
@@ -243,7 +230,7 @@ void Cpu::op_lw(const Instruction& instruction) {
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
 	// delay the load by one instruction
 	m_load_delay_register = instruction.rt();
-	m_load_delay_data = to_word(read_memory(address, 4));
+	m_load_delay_data = to_32(read_memory(address, 4));
 	
 	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
 	std::cout << std::hex << address << '\n';
@@ -337,20 +324,12 @@ void Cpu::op_sw(const Instruction& instruction) {
 		return;
 	}
 	
-	// Convert into an array of bytes 
-	// so it can be written into memory
-	uint32_t word { get_register_data(instruction.rt()) };
-	std::array<uint8_t, 4> bytes {
-		static_cast<uint8_t>((word >> 24) & 0xff),
-		static_cast<uint8_t>((word >> 16) & 0xff),
-		static_cast<uint8_t>((word >> 8) & 0xff),
-		static_cast<uint8_t>(word & 0xff),
-	};
+	uint32_t result { get_register_data(instruction.rt()) };
 
 	std::cout << instruction << " " << register_name(instruction.rt()) << ", ";
 	std::cout << m_bus.to_physical_address(address) << '\n';
 
-	write_memory(address, std::as_bytes(std::span{ bytes }));
+	write_memory(address, std::as_bytes(std::span{ &result, 1 }));
 }
 
 void Cpu::op_ori(const Instruction& instruction) {
