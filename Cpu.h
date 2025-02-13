@@ -58,4 +58,12 @@ private:
 	void op_andi(const Instruction& instruction);
 	void op_sb(const Instruction& instruction);
 	void op_jr(const Instruction& instruction);
+	void op_lb(const Instruction& instruction);
+	void op_beq(const Instruction& instruction);
+	void op_mfc0(const Instruction& instruction);
+	void op_and(const Instruction& instruction);
+	void op_add(const Instruction& instruction);
+	void op_bgtz(const Instruction& instruction);
+	void op_blez(const Instruction& instruction);
+	void op_lbu(const Instruction& instruction);
 };

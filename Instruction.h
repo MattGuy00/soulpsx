@@ -49,24 +49,32 @@ class Instruction {
 public:
 	enum class Opcode {
 		mtc0,
+		mfc0,
 
 		andi,
+		and_b,
 		or_b,
 		ori,
 		addiu,
 		addi,
 		addu,
 		sltu,
+		add,
 		sll,
 		sh,
 		sb,
 		lui,
 		lw,
+		lb,
+		lbu,
 		sw,
 		jump,
 		jal,
 		jr,
 		bne,
+		beq,
+		bgtz,
+		blez,
 		unknown,
 	};
 

@@ -29,6 +29,10 @@ void Cpu::fetch_decode_execute() {
 				op_andi(instruction);
 				break;
 			}
+			case and_b: {
+				op_and(instruction);
+				break;
+			}
 			case or_b: {
 				op_or(instruction);
 				break;
@@ -49,6 +53,10 @@ void Cpu::fetch_decode_execute() {
 				op_addu(instruction);
 				break;
 			}
+			case add: {
+				op_add(instruction);
+				break;
+			}
 			case sltu: {
 				op_sltu(instruction);
 				break;
@@ -59,6 +67,14 @@ void Cpu::fetch_decode_execute() {
 			}
 			case lw: {
 				op_lw(instruction);
+				break;
+			}
+			case lb: {
+				op_lb(instruction);
+				break;
+			}
+			case lbu: {
+				op_lbu(instruction);
 				break;
 			}
 			case sw: {
@@ -93,8 +109,24 @@ void Cpu::fetch_decode_execute() {
 				op_bne(instruction);
 				break;
 			}
+			case beq: {
+				op_beq(instruction);
+				break;
+			}
+			case bgtz: {
+				op_bgtz(instruction);
+				break;
+			}
+			case blez: {
+				op_blez(instruction);
+				break;
+			}
 			case mtc0: {
 				op_mtc0(instruction);
+				break;
+			}
+			case mfc0: {
+				op_mfc0(instruction);
 				break;
 			}
 			case unknown: {
@@ -145,6 +177,118 @@ uint32_t to_32(std::span<const std::byte> data) {
 	std::memcpy(&word, data.data(), sizeof(word));
 
 	return word;
+}
+
+void Cpu::op_lbu(const Instruction& instruction) {
+	// Cache is isolated
+	if (cop0_sr & 0x10000) {
+		std::cout << "cache isolated\n";
+		return;
+	}
+
+	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
+	// delay the load by one instruction
+	m_load_delay_register = instruction.rt();
+	m_load_delay_data = static_cast<char>(to_32(read_memory(address, 1)));
+	
+	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
+	std::cout << std::hex << address << '\n';
+}
+
+void Cpu::op_blez(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t offset { instruction.imm16_se() << 2 };
+
+	if (rs_data <= 0) {
+		m_pc += offset;
+		m_pc -= 4;
+	}
+
+	std::cout << instruction << ' ';
+	std::cout << rs_data << ", " << offset << '\n';
+}
+
+void Cpu::op_bgtz(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t offset { instruction.imm16_se() << 2 };
+
+	if (rs_data > 0) {
+		m_pc += offset;
+		m_pc -= 4;
+	}
+
+	std::cout << instruction << ' ';
+	std::cout << rs_data << ", " << offset << '\n';
+}
+
+void Cpu::op_add(const Instruction& instruction) {
+	int rs_value { static_cast<int>(get_register_data(instruction.rs())) };
+	int rt_value { static_cast<int>(get_register_data(instruction.rt())) };
+	long long result { rs_value + rt_value };
+
+	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
+	std::cout << rs_value << " + " << rt_value << " (" << result << ")\n";
+
+	if (result > std::numeric_limits<int>::max()) {
+		std::cout << "Overflow exception\n";
+		return;
+	}
+
+	set_register(instruction.rd(), static_cast<uint32_t>(result));
+}
+
+void Cpu::op_and(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t rt_data { get_register_data(instruction.rt()) };
+	set_register(instruction.rd(), rs_data & rt_data);
+
+	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
+	std::cout << rs_data << " & " << rt_data << " (" << (rs_data & rt_data) << ")\n";
+}
+
+void Cpu::op_mfc0(const Instruction& instruction) {
+	uint32_t rt_data { get_register_data(instruction.rt()) };
+	uint32_t cop0_reg { static_cast<uint32_t>(instruction.rd()) };
+
+	std::cout << instruction << ' ';
+	// status register
+	if (cop0_reg == 12) {
+		m_load_delay_register = instruction.rt();
+		m_load_delay_data = cop0_sr;
+		std::cout << std::dec << rt_data << ", " << cop0_reg << '\n';
+	} else {
+		std::cout << "unimplemented\n";
+	}
+}
+
+void Cpu::op_beq(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t rt_data { get_register_data(instruction.rt()) };
+	uint32_t offset { instruction.imm16_se() << 2 };
+
+	if (rs_data == rt_data) {
+		m_pc += offset;
+		m_pc -= 4;
+	}
+
+	std::cout << instruction << ' ';
+	std::cout << rs_data << ", " << std::dec << rt_data << ", " << offset << '\n';
+}
+
+void Cpu::op_lb(const Instruction& instruction) {
+	// Cache is isolated
+	if (cop0_sr & 0x10000) {
+		std::cout << "cache isolated\n";
+		return;
+	}
+
+	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
+	// delay the load by one instruction
+	m_load_delay_register = instruction.rt();
+	m_load_delay_data = static_cast<signed char>(to_32(read_memory(address, 1)));
+	
+	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
+	std::cout << std::hex << address << '\n';
 }
 
 void Cpu::op_jr(const Instruction& instruction) {
@@ -212,7 +356,6 @@ void Cpu::op_addu(const Instruction& instruction) {
 }
 
 void Cpu::op_sltu(const Instruction& instruction) {
-	
 	set_register(instruction.rd(), 
 			  get_register_data(instruction.rs()) < get_register_data(instruction.rt()));
 
