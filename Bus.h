@@ -31,6 +31,12 @@ struct Bus {
 	static constexpr uint32_t cache_control_size { 512 };
 	static constexpr uint32_t cache_control_end { cache_control_begin + cache_control_size };
 
+	static constexpr uint32_t expansion_region_1_begin { 0x1f000000 };
+	static constexpr uint32_t expansion_region_1_size { 8 * 1024 };
+	static constexpr uint32_t expansion_region_1_end { expansion_region_1_begin + expansion_region_1_size };
+
+	static constexpr uint8_t m_no_expansion { 0xff };
+
 	static constexpr uint32_t expansion_region_2_begin { 0x1f802000 };
 	static constexpr uint32_t expansion_region_2_size { 8 * 1024 };
 	static constexpr uint32_t expansion_region_2_end { expansion_region_2_begin + expansion_region_2_size };

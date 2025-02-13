@@ -2,11 +2,12 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <span>
 
 std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes = 0) {
 	uint32_t physical_address { to_physical_address(address) };
 
-	if (address % 4 != 0) {
+	if (address % bytes != 0) {
 		std::cout << "Unaligned address exception (" << std::hex;
 		std::cout << physical_address << ")\n";
 	}
@@ -19,8 +20,10 @@ std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes = 0
 		return std::span{ io_ports }.subspan(physical_address - io_ports_begin, bytes);
 	} else if (physical_address >= cache_control_begin && physical_address < cache_control_end) {
 		std::cout << "cache control\n";
+	} else if (physical_address >= expansion_region_1_begin && physical_address < expansion_region_1_end) {
+		return std::as_bytes(std::span{ &m_no_expansion, 1 });
 	} else {
-		std::cout << "Read to unknown region\n";
+		std::cout << "Read to unknown region (" << physical_address << ")\n";
 		std::exit(1);
 	}
 
@@ -30,7 +33,7 @@ std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes = 0
 void Bus::write_memory(uint32_t address, std::span<const std::byte> data) {
 	uint32_t physical_address { to_physical_address(address) };
 	
-	if (address % 4 != 0) {
+	if (address % data.size() != 0) {
 		std::cout << "Unaligned address exception (" << std::hex;
 		std::cout << physical_address << ")\n";
 	}
