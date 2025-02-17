@@ -14,10 +14,17 @@ std::string_view Instruction::type_string() const {
 		case addi: return "addi";
 		case addu: return "addu";
 		case add: return "add";
+		case subu: return "subu";
+		case div: return "div";
+		case divu: return "divu";
 		case sltu: return "sltu";
+		case slti: return "slti";
+		case sltiu: return "sltiu";
 		case sll: return "sll";
+		case srl: return "srl";
 		case sh: return "sh";
 		case sb: return "sb";
+		case sra: return "sra";
 		case lui: return "lui";
 		case lw: return "lw";
 		case lb: return "lb";
@@ -26,10 +33,14 @@ std::string_view Instruction::type_string() const {
 		case jump: return "jump";
 		case jal: return "jal";
 		case jr: return "jr";
+		case jalr: return "jalr";
 		case bne: return "bne";
 		case beq: return "beq";
 		case bgtz: return "bgtz";
+		case bgez: return "bgez";
 		case blez: return "blez";
+		case bltz: return "bltz";
+		case mflo: return "mflo";
 		case mtc0: return "mtc0";
 		case mfc0: return "mfc0";
 		default: return "unknown";
@@ -46,6 +57,8 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 		case 0b001001: return addiu;
 		case 0b001000: return addi;
 		case 0b001111: return lui;
+		case 0b001010: return slti;
+		case 0b001011: return sltiu;
 		case 0b100011: return lw;
 		case 0b100000: return lb;
 		case 0b100100: return lbu;
@@ -58,17 +71,34 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 		case 0b000100: return beq;
 		case 0b000111: return bgtz;
 		case 0b000110: return blez;
+		// Certain branch instructions. Need to check bits 16 to 20
+		case 0b000001: {
+			uint8_t branch_opcode { static_cast<uint8_t>(data >> 16 & 0b11111) };
+			switch (branch_opcode) {
+				case 0b00000: return bltz;
+				case 0b00001: return bgez;
+				default:
+					std::cout << "Branch: " << std::bitset<6>{ branch_opcode } << '\n';
+			}
+		}
 		// Special instruction. So we check secondary opcode
 		case 0b000000: {
 			uint8_t secondary_opcode { static_cast<uint8_t>(data & 0b111111) };
 			switch (secondary_opcode) {
 				case 0b000000: return sll;
+				case 0b000010: return srl;
+				case 0b000011: return sra;
 				case 0b100100: return and_b;
 				case 0b100101: return or_b;
 				case 0b101011: return sltu;
 				case 0b100001: return addu;
 				case 0b100000: return add;
+				case 0b100011: return subu;
+				case 0b011010: return div;
+				case 0b011011: return divu;
 				case 0b001000: return jr;
+				case 0b001001: return jalr;
+				case 0b010010: return mflo;
 				default:
 					std::cout << "Special: ";
 					std::cout << std::bitset<6>{ secondary_opcode } << '\n';

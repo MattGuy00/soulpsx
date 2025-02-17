@@ -1,11 +1,11 @@
 #include "Cpu.h"
 #include "Instruction.h"
 
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <ranges>
 #include <span>
 
 void Cpu::fetch_decode_execute() {
@@ -57,12 +57,40 @@ void Cpu::fetch_decode_execute() {
 				op_add(instruction);
 				break;
 			}
+			case subu: {
+				op_subu(instruction);
+				break;
+			}
+			case div: {
+				op_div(instruction);
+				break;
+			}
+			case divu: {
+				op_divu(instruction);
+				break;
+			}
 			case sltu: {
 				op_sltu(instruction);
 				break;
 			}
+			case slti: {
+				op_slti(instruction);
+				break;
+			}
+			case sltiu: {
+				op_sltiu(instruction);
+				break;
+			}
 			case sll: {
 				op_sll(instruction);
+				break;
+			}
+			case srl: {
+				op_srl(instruction);
+				break;
+			}
+			case sra: {
+				op_sra(instruction);
 				break;
 			}
 			case lw: {
@@ -101,6 +129,10 @@ void Cpu::fetch_decode_execute() {
 				op_jal(instruction);
 				break;
 			}
+			case jalr: {
+				op_jalr(instruction);
+				break;
+			}
 			case jr: {
 				op_jr(instruction);
 				break;
@@ -117,8 +149,20 @@ void Cpu::fetch_decode_execute() {
 				op_bgtz(instruction);
 				break;
 			}
+			case bgez: {
+				op_bgez(instruction);
+				break;
+			}
 			case blez: {
 				op_blez(instruction);
+				break;
+			}
+			case bltz: {
+				op_bltz(instruction);
+				break;
+			}
+			case mflo: {
+				op_mflo(instruction);
 				break;
 			}
 			case mtc0: {
@@ -177,6 +221,134 @@ uint32_t to_32(std::span<const std::byte> data) {
 	std::memcpy(&word, data.data(), sizeof(word));
 
 	return word;
+}
+
+void Cpu::op_divu(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t divisor { get_register_data(instruction.rt()) };
+
+	if (divisor == 0) {
+		m_lo = std::numeric_limits<uint32_t>::max();
+		m_hi = rs_data;
+	} else {
+		m_lo = rs_data / divisor;
+		m_hi = rs_data % divisor;
+	}
+
+	std::cout << instruction << ' ' << rs_data << ", " << divisor << '\n';
+}
+
+void Cpu::op_sltiu(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	set_register(instruction.rt(), rs_data < instruction.imm16_se());
+
+	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
+	std::cout << rs_data << " < " << instruction.imm16_se() << '\n';
+}
+
+void Cpu::op_srl(const Instruction& instruction) {
+	// If the instruction is 0, then its a NOP
+	if (instruction.sa() == 0) {
+		std::cout << "nop\n";
+		return;
+	}
+
+	uint32_t rt_data { get_register_data(instruction.rt()) };
+	set_register(instruction.rd(), rt_data >> instruction.sa());
+	
+	std::cout << instruction << " " << register_name(instruction.rd()) << ", ";
+	std::cout << rt_data << ", " << instruction.sa() << '\n';
+}
+
+void Cpu::op_bgez(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t offset { instruction.imm16_se() << 2 };
+
+	if (rs_data >= 0) {
+		m_pc += offset;
+		m_pc -= 4;
+	}
+
+	std::cout << instruction << ' ';
+	std::cout << rs_data << ", " << offset << '\n';
+}
+
+void Cpu::op_mflo(const Instruction& instruction) {
+	set_register(instruction.rd(), m_lo);
+
+	std::cout << instruction << ' ' << register_name(instruction.rd()) << '\n';
+}
+
+void Cpu::op_div(const Instruction& instruction) {
+	int rs_data { static_cast<int>(get_register_data(instruction.rs())) };
+	int divisor { static_cast<int>(get_register_data(instruction.rt())) };
+	
+	if (divisor == 0) {
+		if (rs_data >= 0 && rs_data <= 0x7fffffff) {
+			m_lo = -1;
+			m_hi = rs_data;
+		} else {
+			m_lo = 1;
+			m_hi = rs_data;
+		}
+	} else if (divisor == -1 && (uint32_t)rs_data == 0x80000000) {
+		m_lo = 0x80000000;
+		m_hi = 0;
+	} else {
+		m_lo = rs_data / divisor;
+		m_hi = rs_data % divisor;
+	}
+
+	std::cout << instruction << ' ' << rs_data << ", " << divisor << '\n';
+}
+
+void Cpu::op_sra(const Instruction& instruction) {
+	int rt_data { static_cast<int>(get_register_data(instruction.rt())) };
+	int result { rt_data >> instruction.sa() };
+	set_register(instruction.rd(), result);
+
+	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
+	std::cout << rt_data << " >> " << instruction.sa() << " (";
+	std::cout << result << ")\n";
+}
+
+void Cpu::op_subu(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t rt_data { get_register_data(instruction.rt()) };
+	set_register(instruction.rd(), rs_data - rt_data);
+
+	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
+	std::cout << rs_data << " - " << rt_data << '\n';
+}
+
+void Cpu::op_slti(const Instruction& instruction) {
+	int rs_data { static_cast<int>(get_register_data(instruction.rs())) };
+	int imm { static_cast<int>(instruction.imm16_se()) };
+	set_register(instruction.rt(), rs_data < imm);
+
+	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
+	std::cout << rs_data << " < " << imm << '\n';
+}
+
+void Cpu::op_bltz(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	uint32_t offset { instruction.imm16_se() << 2 };
+
+	if (rs_data < 0) {
+		m_pc += offset;
+		m_pc -= 4;
+	}
+
+	std::cout << instruction << ' ';
+	std::cout << rs_data << ", " << offset << '\n';
+}
+
+void Cpu::op_jalr(const Instruction& instruction) {
+	set_register(instruction.rd(), m_pc);
+	m_pc = get_register_data(instruction.rs());
+
+	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
+	std::cout << get_register_data(instruction.rs()) << '\n';
 }
 
 void Cpu::op_lbu(const Instruction& instruction) {

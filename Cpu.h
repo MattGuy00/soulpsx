@@ -21,6 +21,9 @@ private:
 	uint32_t m_pc { 0xbfc00000 };
 	std::array<uint32_t, 32> m_registers {};
 
+	uint32_t m_hi {};
+	uint32_t m_lo {};
+
 	uint32_t cop0_sr {};
 
 	std::span<const std::byte> read_memory(uint32_t address, uint32_t bytes);
@@ -66,4 +69,15 @@ private:
 	void op_bgtz(const Instruction& instruction);
 	void op_blez(const Instruction& instruction);
 	void op_lbu(const Instruction& instruction);
+	void op_jalr(const Instruction& instruction);
+	void op_bltz(const Instruction& instruction);
+	void op_slti(const Instruction& instruction);
+	void op_subu(const Instruction& instruction);
+	void op_sra(const Instruction& instruction);
+	void op_div(const Instruction& instruction);
+	void op_mflo(const Instruction& instruction);
+	void op_bgez(const Instruction& instruction);
+	void op_srl(const Instruction& instruction);
+	void op_sltiu(const Instruction& instruction);
+	void op_divu(const Instruction& instruction);
 };
