@@ -17,6 +17,7 @@ std::string_view Instruction::type_string() const {
 		case subu: return "subu";
 		case div: return "div";
 		case divu: return "divu";
+		case slt: return "slt";
 		case sltu: return "sltu";
 		case slti: return "slti";
 		case sltiu: return "sltiu";
@@ -41,6 +42,7 @@ std::string_view Instruction::type_string() const {
 		case blez: return "blez";
 		case bltz: return "bltz";
 		case mflo: return "mflo";
+		case mfhi: return "mfhi";
 		case mtc0: return "mtc0";
 		case mfc0: return "mfc0";
 		default: return "unknown";
@@ -90,6 +92,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b000011: return sra;
 				case 0b100100: return and_b;
 				case 0b100101: return or_b;
+				case 0b101010: return slt;
 				case 0b101011: return sltu;
 				case 0b100001: return addu;
 				case 0b100000: return add;
@@ -99,6 +102,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b001000: return jr;
 				case 0b001001: return jalr;
 				case 0b010010: return mflo;
+				case 0b010000: return mfhi;
 				default:
 					std::cout << "Special: ";
 					std::cout << std::bitset<6>{ secondary_opcode } << '\n';

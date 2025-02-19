@@ -52,6 +52,7 @@ public:
 		mfc0,
 
 		mflo,
+		mfhi,
 		andi,
 		and_b,
 		or_b,
@@ -62,6 +63,7 @@ public:
 		subu,
 		div,
 		divu, 
+		slt,
 		sltu,
 		slti,
 		sltiu,
@@ -107,7 +109,7 @@ public:
 	// Note the order of casts. This ensures that a sign extending instruction is 
 	// is generated.
 	uint32_t imm16_se() const { 
-		return static_cast<uint32_t>(static_cast<short>(m_data & 0xffff));
+		return static_cast<uint32_t>(static_cast<int16_t>(m_data & 0xffff));
 	}
 
 
