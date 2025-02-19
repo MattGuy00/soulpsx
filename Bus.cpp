@@ -49,7 +49,7 @@ void Bus::write_memory(uint32_t address, std::span<const std::byte> data) {
 	} else if (physical_address >= expansion_region_2_begin && physical_address < expansion_region_2_end) { 
 		std::cout << "Ignoring write to expansion region 2\n";
 	} else {
-		std::cout << "Write to unknown region\n";
+		std::cout << "Write to unknown region " << "( " << physical_address << ")\n";
 		std::exit(1);
 	}
 }
