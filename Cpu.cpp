@@ -291,7 +291,7 @@ void Cpu::exception(Exception excode) {
 		cause |= 1 << 31;
 
 		// this is ok because we overwrite it with the handler
-		m_pc = -4;
+		m_pc -= 4;
 	}
 
 	// Store the cause of the exception in the cause register at bits 2:6
