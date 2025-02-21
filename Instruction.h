@@ -45,6 +45,44 @@ enum class Register {
 	ra,
 };
 
+enum class Cop0_Register {
+	// Breakpoint on execute
+	bpc = 3,
+
+	// Breakpoint on data access
+	bda = 5,
+
+	// Randomly memorised jump address
+	jumpdest = 6,
+
+	// Breakpoint control
+	dcic = 7,
+
+	// Bad Virtual Address
+	badvaddr = 8,
+
+	// Data access breakpoint mask
+	bdam = 9,
+
+	// Execute breakpoint mask
+	bpcm = 11,
+
+	// System status 
+	sr = 12,
+
+	// Describes the most recently recognised exception
+	cause = 13,
+
+	// Return address from trap
+	epc = 14,
+
+	// Processor ID
+	prid = 15,
+	
+	// Catch all for all unused / unknown registers
+	unused
+};
+
 class Instruction {
 public:
 	enum class Opcode {
@@ -88,6 +126,7 @@ public:
 		bgez,
 		blez,
 		bltz,
+		syscall,
 		unknown,
 	};
 
@@ -101,6 +140,7 @@ public:
 	Register rs() const { return static_cast<Register>((m_data >> 21) & 0b11111); }
 	Register rt() const { return static_cast<Register>((m_data >> 16) & 0b11111); }
 	Register rd() const { return static_cast<Register>((m_data >> 11) & 0b11111); }
+	Cop0_Register cop0_rd() const { return static_cast<Cop0_Register>((m_data >> 11) & 0b11111); }
 	Register base() const { return static_cast<Register>((m_data >> 21) & 0b11111); }
 	
 	uint32_t sa() const { return (m_data >> 6) & 0b11111; }

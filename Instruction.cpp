@@ -1,7 +1,7 @@
 #include "Instruction.h"
 #include <bitset>
 #include <cstdint>
-
+#include <unistd.h>
 
 std::string_view Instruction::type_string() const {
 	using enum Opcode;
@@ -45,6 +45,7 @@ std::string_view Instruction::type_string() const {
 		case mfhi: return "mfhi";
 		case mtc0: return "mtc0";
 		case mfc0: return "mfc0";
+		case syscall: return "syscall";
 		default: return "unknown";
 	}
 }
@@ -103,6 +104,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b001001: return jalr;
 				case 0b010010: return mflo;
 				case 0b010000: return mfhi;
+				case 0b001100: return syscall;
 				default:
 					std::cout << "Special: ";
 					std::cout << std::bitset<6>{ secondary_opcode } << '\n';

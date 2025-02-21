@@ -17,15 +17,18 @@ public:
 	void fetch_decode_execute();
 private:
 	Bus& m_bus;
+
 	uint32_t m_pc { 0xbfc00000 };
 	uint32_t m_next_pc { m_pc + 4};
+
 	std::array<uint32_t, 32> m_registers {};
 	std::array<uint32_t, 32> m_temp_registers {};
 
+	std::array<uint32_t, 16> m_cop0_registers {};
+	std::array<uint32_t, 16> m_cop0_temp_registers {};
+
 	uint32_t m_hi {};
 	uint32_t m_lo {};
-
-	uint32_t cop0_sr {};
 
 	std::span<const std::byte> read_memory(uint32_t address, uint32_t bytes);
 	void write_memory(uint32_t address, std::span<const std::byte> data);
@@ -34,6 +37,10 @@ private:
 	void set_register(Register reg, uint32_t data);
 	uint32_t get_register_data(Register reg);
 	std::string_view register_name(Register reg);
+	
+	void cop0_set_register(Cop0_Register reg, uint32_t data);
+	uint32_t cop0_get_register_data(Cop0_Register reg);
+	std::string_view cop0_register_name(Cop0_Register reg);
 	
 	// Delay moving data from memory into registers by 1 cycle
 	struct Load_delay {
@@ -46,6 +53,12 @@ private:
 	void load_delay_data(Register reg, uint32_t data);
 
 	void branch(uint32_t offset);
+
+	enum class Exception {
+		syscall = 0x8,
+	};
+
+	void exception(Exception excode);
 
 	void op_lui(const Instruction& instruction);
 	void op_ori(const Instruction& instruction);
@@ -86,4 +99,5 @@ private:
 	void op_divu(const Instruction& instruction);
 	void op_mfhi(const Instruction& instruction);
 	void op_slt(const Instruction& instruction);
+	void op_syscall(const Instruction& instruction);
 };

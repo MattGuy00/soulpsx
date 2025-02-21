@@ -191,6 +191,10 @@ void Cpu::fetch_decode_execute() {
 				op_mfc0(instruction);
 				break;
 			}
+			case syscall: {
+				op_syscall(instruction);
+				break;
+			}
 			case unknown: {
 				std::cout << instruction << '\n';
 				return;
@@ -199,11 +203,7 @@ void Cpu::fetch_decode_execute() {
 		
 		// Update the registers
 		m_registers = m_temp_registers;
-
-		/*for (auto x : m_registers) {*/
-		/*	std::cout << ' ' << x;*/
-		/*}*/
-		/*std::cout << '\n';*/
+		m_cop0_registers = m_cop0_temp_registers;
 	}
 }
 
@@ -214,6 +214,15 @@ void Cpu::set_register(Register reg, uint32_t data) {
 
 uint32_t Cpu::get_register_data(Register reg) {
 	return m_registers[static_cast<uint32_t>(reg)];
+}
+
+void Cpu::cop0_set_register(Cop0_Register reg, uint32_t data) {
+	m_cop0_temp_registers[static_cast<uint32_t>(reg)] = data;
+	m_cop0_temp_registers[0] = 0;
+}
+
+uint32_t Cpu::cop0_get_register_data(Cop0_Register reg) {
+	return m_cop0_registers[static_cast<uint32_t>(reg)];
 }
 
 std::span<const std::byte> Cpu::read_memory(uint32_t address, uint32_t bytes) {
@@ -245,6 +254,34 @@ void Cpu::branch(uint32_t offset) {
 
 void Cpu::load_delay_data(Register reg, uint32_t data) {
 	m_load_delay_slot = { reg, data };
+}
+
+// I dont really understand much of this function yet
+// Credit to Lionel Flandrin
+void Cpu::exception(Exception excode) {
+	uint32_t sr { cop0_get_register_data(Cop0_Register::sr) };
+	// Find exception handler address based on BEV bit
+	uint32_t handler { 0xbfc00180 ? (sr & (1 << 22)) : 0x80000080 };
+
+	uint32_t mode { sr & 0x3f };
+	sr &= ~0x3f;
+	sr |= (mode << 2) & 0x3f;
+	cop0_set_register(Cop0_Register::sr, sr);
+
+	// Store the cause of the exception in the cause register at bits 2:6
+	cop0_set_register(Cop0_Register::cause, static_cast<uint32_t>(excode) << 2);
+
+	cop0_set_register(Cop0_Register::epc, m_pc);
+
+	// Immediately jump to the handler
+	m_pc = handler;
+	m_next_pc = m_pc + 4;
+}
+
+void Cpu::op_syscall(const Instruction& instruction) {
+	exception(Exception::syscall);
+
+	std::cout << instruction << '\n';
 }
 
 void Cpu::op_slt(const Instruction& instruction) {
@@ -384,7 +421,7 @@ void Cpu::op_jalr(const Instruction& instruction) {
 
 void Cpu::op_lbu(const Instruction& instruction) {
 	// Cache is isolated
-	if ((cop0_sr & 0x10000) != 0) {
+	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
 		std::cout << "cache isolated\n";
 		return;
 	}
@@ -448,17 +485,11 @@ void Cpu::op_and(const Instruction& instruction) {
 }
 
 void Cpu::op_mfc0(const Instruction& instruction) {
-	uint32_t rt_data { get_register_data(instruction.rt()) };
-	uint32_t cop0_reg { static_cast<uint32_t>(instruction.rd()) };
+	uint32_t rd_data { cop0_get_register_data(instruction.cop0_rd()) };
+	load_delay_data(instruction.rt(), rd_data);
 
-	std::cout << instruction << ' ';
-	// status register
-	if (cop0_reg == 12) {
-		load_delay_data(instruction.rt(), cop0_sr);
-		std::cout << std::dec << rt_data << ", " << cop0_reg << '\n';
-	} else {
-		std::cout << "unimplemented\n";
-	}
+	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
+	std::cout << cop0_register_name(instruction.cop0_rd()) << '\n';
 }
 
 void Cpu::op_beq(const Instruction& instruction) {
@@ -476,7 +507,7 @@ void Cpu::op_beq(const Instruction& instruction) {
 
 void Cpu::op_lb(const Instruction& instruction) {
 	// Cache is isolated
-	if ((cop0_sr & 0x10000) != 0) {
+	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
 		std::cout << "cache isolated\n";
 		return;
 	}
@@ -499,7 +530,7 @@ void Cpu::op_jr(const Instruction& instruction) {
 
 void Cpu::op_sb(const Instruction& instruction) {
 	// Cache is isolated
-	if ((cop0_sr & 0x10000) != 0) {
+	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
 		std::cout << "cache isolated\n";
 		return;
 	}
@@ -527,7 +558,7 @@ void Cpu::op_jal(const Instruction& instruction) {
 
 void Cpu::op_sh(const Instruction& instruction) {
 	// Cache is isolated
-	if ((cop0_sr & 0x10000) != 0) {
+	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
 		std::cout << "cache isolated\n";
 		return;
 	}
@@ -563,7 +594,7 @@ void Cpu::op_sltu(const Instruction& instruction) {
 
 void Cpu::op_lw(const Instruction& instruction) {
 	// Cache is isolated
-	if (cop0_sr & 0x10000) {
+	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
 		std::cout << "cache isolated\n";
 		return;
 	}
@@ -607,16 +638,10 @@ void Cpu::op_bne(const Instruction& instruction) {
 
 void Cpu::op_mtc0(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
-	uint32_t cop0_reg { static_cast<uint32_t>(instruction.rd()) };
+	cop0_set_register(instruction.cop0_rd(), rt_data);
 
-	std::cout << instruction << ' ';
-	// status register
-	if (cop0_reg == 12) {
-		cop0_sr = rt_data;
-		std::cout << std::dec << rt_data << ", " << cop0_reg << '\n';
-	} else {
-		std::cout << "unimplemented\n";
-	}
+	std::cout << instruction << ' ' << rt_data << ", ";
+	std::cout << cop0_register_name(instruction.cop0_rd()) << '\n';
 }
 
 void Cpu::op_or(const Instruction& instruction) {
@@ -658,7 +683,7 @@ void Cpu::op_sw(const Instruction& instruction) {
 	uint32_t address { base + instruction.imm16_se() };
 
 	// Cache is isolated
-	if ((cop0_sr & 0x10000) != 0) {
+	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
 		std::cout << "cache isolated\n";
 		return;
 	}
@@ -721,5 +746,23 @@ std::string_view Cpu::register_name(Register reg) {
 		case sp: return "sp";
 		case fp: return "fp";
 		case ra: return "ra";
+	}
+}
+
+std::string_view Cpu::cop0_register_name(Cop0_Register reg) {
+	using enum Cop0_Register;
+	switch (reg) {
+		case bpc: return "bpc";
+		case bda: return "bda";
+		case jumpdest: return "jumpdest";
+		case dcic: return "dcic";
+		case badvaddr: return "badvaddr";
+		case bdam: return "bdam";
+		case bpcm: return "bpcm";
+		case sr: return "sr";
+		case cause: return "cause";
+		case epc: return "epc";
+		case prid: return "prid";
+		case unused: return "unused";
 	}
 }
