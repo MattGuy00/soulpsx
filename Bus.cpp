@@ -7,11 +7,6 @@
 std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes = 0) {
 	uint32_t physical_address { to_physical_address(address) };
 
-	if (address % bytes != 0) {
-		std::cout << "Unaligned address exception (" << std::hex;
-		std::cout << physical_address << ")\n";
-	}
-
 	if (physical_address >= bios_memory_begin && physical_address < bios_memory_end) {
 		return bios.read(physical_address - bios_memory_begin, bytes);
 	} else if (physical_address >= ram_begin && physical_address < ram_end) {
@@ -32,11 +27,6 @@ std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes = 0
 
 void Bus::write_memory(uint32_t address, std::span<const std::byte> data) {
 	uint32_t physical_address { to_physical_address(address) };
-	
-	if (address % data.size() != 0) {
-		std::cout << "Unaligned address exception (" << std::hex;
-		std::cout << physical_address << ")\n";
-	}
 
 	if (physical_address >= bios_memory_begin && physical_address < bios_memory_end) {
 		std::cout << "Illegal write to Read Only Memory (Bios)\n";

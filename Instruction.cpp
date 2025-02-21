@@ -43,9 +43,12 @@ std::string_view Instruction::type_string() const {
 		case bltz: return "bltz";
 		case mflo: return "mflo";
 		case mfhi: return "mfhi";
+		case mtlo: return "mtlo";
+		case mthi: return "mthi";
 		case mtc0: return "mtc0";
 		case mfc0: return "mfc0";
 		case syscall: return "syscall";
+		case rfe: return "rfe";
 		default: return "unknown";
 	}
 }
@@ -104,6 +107,8 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b001001: return jalr;
 				case 0b010010: return mflo;
 				case 0b010000: return mfhi;
+				case 0b010011: return mtlo;
+				case 0b010001: return mthi;
 				case 0b001100: return syscall;
 				default:
 					std::cout << "Special: ";
@@ -117,6 +122,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 			switch (cop0_opcode) {
 				case 0b00100: return mtc0;
 				case 0b00000: return mfc0;
+				case 0b01000: return rfe;
 				default:
 					std::cout << "cop0 opcode: ";
 					std::cout << std::bitset<6>{ cop0_opcode } << '\n';

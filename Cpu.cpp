@@ -23,6 +23,9 @@ void Cpu::fetch_decode_execute() {
 
 		m_pc = m_next_pc;
 		m_next_pc += 4;
+		
+		m_is_branch_delay = m_was_branch;
+		m_was_branch = false;
 
 		// load the delayed data into the temp registers.
 		// The next next instruction won't see the new values yet.
@@ -183,6 +186,14 @@ void Cpu::fetch_decode_execute() {
 				op_mfhi(instruction);
 				break;
 			}
+			case mtlo: {
+				op_mtlo(instruction);
+				break;
+			}
+			case mthi: {
+				op_mthi(instruction);
+				break;
+			}
 			case mtc0: {
 				op_mtc0(instruction);
 				break;
@@ -193,6 +204,10 @@ void Cpu::fetch_decode_execute() {
 			}
 			case syscall: {
 				op_syscall(instruction);
+				break;
+			}
+			case rfe: {
+				op_rfe(instruction);
 				break;
 			}
 			case unknown: {
@@ -250,6 +265,8 @@ uint8_t to_8(std::span<const std::byte> data) {
 void Cpu::branch(uint32_t offset) {
 	m_next_pc += offset;
 	m_next_pc -= 4;
+
+	m_was_branch = true;
 }
 
 void Cpu::load_delay_data(Register reg, uint32_t data) {
@@ -268,14 +285,52 @@ void Cpu::exception(Exception excode) {
 	sr |= (mode << 2) & 0x3f;
 	cop0_set_register(Cop0_Register::sr, sr);
 
-	// Store the cause of the exception in the cause register at bits 2:6
-	cop0_set_register(Cop0_Register::cause, static_cast<uint32_t>(excode) << 2);
+	uint32_t cause { static_cast<uint32_t>(excode) << 2 };
 
+	if (m_is_branch_delay) {
+		cause |= 1 << 31;
+
+		// this is ok because we overwrite it with the handler
+		m_pc = -4;
+	}
+
+	// Store the cause of the exception in the cause register at bits 2:6
+	cop0_set_register(Cop0_Register::cause, cause);
 	cop0_set_register(Cop0_Register::epc, m_pc);
 
 	// Immediately jump to the handler
 	m_pc = handler;
 	m_next_pc = m_pc + 4;
+
+	std::cout << exception_name(excode) << " exception occured\n";
+}
+
+void Cpu::op_rfe(const Instruction& instruction) {
+	uint32_t sr { cop0_get_register_data(Cop0_Register::sr) };
+
+	// Get previous and old status bits
+	uint32_t status_bits { (sr >> 2) & 0b1111 };
+
+	// Shave off the old status bits and add the correct bits
+	sr >>= 4;
+	sr <<= 4;
+	sr |= status_bits;
+
+	std::cout << instruction << '\n';
+}
+
+void Cpu::op_mthi(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	m_hi = rs_data;
+
+	std::cout << instruction << ' ' << rs_data << '\n';
+}
+
+void Cpu::op_mtlo(const Instruction& instruction) {
+	uint32_t rs_data { get_register_data(instruction.rs()) };
+	m_lo = rs_data;
+
+	std::cout << instruction << ' ' << rs_data << '\n';
 }
 
 void Cpu::op_syscall(const Instruction& instruction) {
@@ -468,7 +523,7 @@ void Cpu::op_add(const Instruction& instruction) {
 	std::cout << rs_value << " + " << rt_value << " (" << result << ")\n";
 
 	if (result > std::numeric_limits<int>::max()) {
-		std::cout << "Overflow exception\n";
+		exception(Exception::arithmetic_overflow);
 		return;
 	}
 
@@ -565,7 +620,11 @@ void Cpu::op_sh(const Instruction& instruction) {
 
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
-	 
+
+	if (address % 2 != 0) {
+		exception(Exception::store_address_error);
+		return;
+	}
 
 	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
 	std::cout << std::hex << address << '\n';
@@ -600,6 +659,10 @@ void Cpu::op_lw(const Instruction& instruction) {
 	}
 
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
+	if (address % 4 != 0) {
+		exception(Exception::load_address_error);
+		return;
+	}
 
 	load_delay_data(instruction.rt(), to_32(read_memory(address, 4)));
 	
@@ -616,7 +679,7 @@ void Cpu::op_addi(const Instruction& instruction) {
 
 	// TODO: Throw an Integer Overflow exception
 	if (result > std::numeric_limits<uint32_t>::max()) {
-		std::cout << " overflow exception\n";
+		exception(Exception::arithmetic_overflow);
 		return;
 	}
 	
@@ -679,12 +742,16 @@ void Cpu::op_lui(const Instruction& instruction) {
 }
 
 void Cpu::op_sw(const Instruction& instruction) {
-	uint32_t base { get_register_data(instruction.base()) };
-	uint32_t address { base + instruction.imm16_se() };
-
 	// Cache is isolated
 	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
 		std::cout << "cache isolated\n";
+		return;
+	}
+	
+	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
+
+	if (address % 4 != 0) {
+		exception(Exception::store_address_error);
 		return;
 	}
 	
@@ -749,7 +816,7 @@ std::string_view Cpu::register_name(Register reg) {
 	}
 }
 
-std::string_view Cpu::cop0_register_name(Cop0_Register reg) {
+std::string_view Cpu::cop0_register_name(Cop0_Register reg) const {
 	using enum Cop0_Register;
 	switch (reg) {
 		case bpc: return "bpc";
@@ -764,5 +831,22 @@ std::string_view Cpu::cop0_register_name(Cop0_Register reg) {
 		case epc: return "epc";
 		case prid: return "prid";
 		case unused: return "unused";
+	}
+}
+
+std::string_view Cpu::exception_name(Exception exception) const {
+	using enum Exception;
+	switch (exception) {
+		case interrupt: return "interrupt";
+		case load_address_error: return "load_address_error";
+		case store_address_error: return "store_address_error";
+		case instruction_bus_error: return "instruction_bus_error";
+		case data_bus_error: return "data_bus_error";
+		case syscall: return "syscall";
+		case breakpoint: return "breakpoint";
+		case reserved_instruction: return "reserved_instruction";
+		case coprocessor_unusable: return "coprocessor_unusable";
+		case arithmetic_overflow: return "arithmetic_overflow";
+		default: return "unknown";
 	}
 }

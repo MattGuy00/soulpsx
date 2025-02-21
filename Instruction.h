@@ -91,6 +91,8 @@ public:
 
 		mflo,
 		mfhi,
+		mtlo,
+		mthi,
 		andi,
 		and_b,
 		or_b,
@@ -127,6 +129,7 @@ public:
 		blez,
 		bltz,
 		syscall,
+		rfe,
 		unknown,
 	};
 

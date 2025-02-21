@@ -21,6 +21,9 @@ private:
 	uint32_t m_pc { 0xbfc00000 };
 	uint32_t m_next_pc { m_pc + 4};
 
+	bool m_was_branch {};
+	bool m_is_branch_delay {};
+
 	std::array<uint32_t, 32> m_registers {};
 	std::array<uint32_t, 32> m_temp_registers {};
 
@@ -40,7 +43,7 @@ private:
 	
 	void cop0_set_register(Cop0_Register reg, uint32_t data);
 	uint32_t cop0_get_register_data(Cop0_Register reg);
-	std::string_view cop0_register_name(Cop0_Register reg);
+	std::string_view cop0_register_name(Cop0_Register reg) const;
 	
 	// Delay moving data from memory into registers by 1 cycle
 	struct Load_delay {
@@ -55,10 +58,20 @@ private:
 	void branch(uint32_t offset);
 
 	enum class Exception {
+		interrupt = 0x0,
+		load_address_error = 0x4,
+		store_address_error = 0x5,
+		instruction_bus_error = 0x6,
+		data_bus_error = 0x7,
 		syscall = 0x8,
+		breakpoint = 0x9,
+		reserved_instruction = 0xa,
+		coprocessor_unusable = 0xb,
+		arithmetic_overflow = 0xc,
 	};
 
 	void exception(Exception excode);
+	std::string_view exception_name(Exception exception) const;
 
 	void op_lui(const Instruction& instruction);
 	void op_ori(const Instruction& instruction);
@@ -100,4 +113,7 @@ private:
 	void op_mfhi(const Instruction& instruction);
 	void op_slt(const Instruction& instruction);
 	void op_syscall(const Instruction& instruction);
+	void op_mtlo(const Instruction& instruction);
+	void op_mthi(const Instruction& instruction);
+	void op_rfe(const Instruction& instruction);
 };
