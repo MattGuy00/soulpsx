@@ -10,7 +10,7 @@
 
 class Cpu {
 public:
-	Cpu(Bus& bus): m_bus { bus }
+	explicit Cpu(Bus& bus): m_bus { bus }
 	{
 	}
 
@@ -116,4 +116,12 @@ private:
 	void op_mtlo(const Instruction& instruction);
 	void op_mthi(const Instruction& instruction);
 	void op_rfe(const Instruction& instruction);
+	void op_lhu(const Instruction& instruction);
+	void op_sllv(const Instruction& instruction);
+	void op_lh(const Instruction& instruction);
+	void op_nor(const Instruction& instruction);
+	void op_srav(const Instruction& instruction);
+	void op_srlv(const Instruction& instruction);
+	void op_multu(const Instruction& instruction);
+	void op_xor(const Instruction& instruction);
 };

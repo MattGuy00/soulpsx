@@ -10,6 +10,8 @@ std::string_view Instruction::type_string() const {
 		case and_b: return "and";
 		case or_b: return "or";
 		case ori: return "ori";
+		case nor: return "nor";
+		case Xor: return "xor";
 		case addiu: return "addiu";
 		case addi: return "addi";
 		case addu: return "addu";
@@ -17,12 +19,16 @@ std::string_view Instruction::type_string() const {
 		case subu: return "subu";
 		case div: return "div";
 		case divu: return "divu";
+		case multu: return "multu";
 		case slt: return "slt";
 		case sltu: return "sltu";
 		case slti: return "slti";
 		case sltiu: return "sltiu";
 		case sll: return "sll";
 		case srl: return "srl";
+		case sllv: return "sllv";
+		case srav: return "srav";
+		case srlv: return "srlv";
 		case sh: return "sh";
 		case sb: return "sb";
 		case sra: return "sra";
@@ -30,6 +36,8 @@ std::string_view Instruction::type_string() const {
 		case lw: return "lw";
 		case lb: return "lb";
 		case lbu: return "lbu";
+		case lhu: return "lhu";
+		case lh: return "lh";
 		case sw: return "sw";
 		case jump: return "jump";
 		case jal: return "jal";
@@ -68,6 +76,8 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 		case 0b100011: return lw;
 		case 0b100000: return lb;
 		case 0b100100: return lbu;
+		case 0b100101: return lhu;
+		case 0b100001: return lh;
 		case 0b101011: return sw;
 		case 0b101001: return sh;
 		case 0b101000: return sb;
@@ -93,9 +103,14 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 			switch (secondary_opcode) {
 				case 0b000000: return sll;
 				case 0b000010: return srl;
+				case 0b000100: return sllv;
+				case 0b000111: return srav;
+				case 0b000110: return srlv;
 				case 0b000011: return sra;
 				case 0b100100: return and_b;
 				case 0b100101: return or_b;
+				case 0b100111: return nor;
+				case 0b100110: return Xor;
 				case 0b101010: return slt;
 				case 0b101011: return sltu;
 				case 0b100001: return addu;
@@ -103,6 +118,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b100011: return subu;
 				case 0b011010: return div;
 				case 0b011011: return divu;
+				case 0b011001: return multu;
 				case 0b001000: return jr;
 				case 0b001001: return jalr;
 				case 0b010010: return mflo;
@@ -122,12 +138,14 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 			switch (cop0_opcode) {
 				case 0b00100: return mtc0;
 				case 0b00000: return mfc0;
-				case 0b01000: return rfe;
-				default:
-					std::cout << "cop0 opcode: ";
-					std::cout << std::bitset<6>{ cop0_opcode } << '\n';
-					return unknown;
 			}
+
+			switch (data & 0b111111) {
+				case 0b010000: return rfe;
+			}
+
+			std::cout << "Cop0 instruction\n";
+			return unknown;
 		}
 		default: 
 			std::cout << std::bitset<6>{ primary_opcode } << '\n';
