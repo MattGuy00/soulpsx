@@ -125,6 +125,7 @@ public:
 		lbu,
 		lhu,
 		lh,
+		lwr,
 		sw,
 		jump,
 		jal,

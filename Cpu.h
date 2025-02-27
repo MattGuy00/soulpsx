@@ -17,8 +17,12 @@ public:
 	void fetch_decode_execute();
 private:
 	Bus& m_bus;
-
+	
+	// Holds the address of the instruction to be executed
 	uint32_t m_pc { 0xbfc00000 };
+	// Holds the address of the instruction currently being executed
+	uint32_t m_current_pc { m_pc };
+	// Holds the address of the next instruction to be executed
 	uint32_t m_next_pc { m_pc + 4};
 
 	bool m_was_branch {};
@@ -124,4 +128,5 @@ private:
 	void op_srlv(const Instruction& instruction);
 	void op_multu(const Instruction& instruction);
 	void op_xor(const Instruction& instruction);
+	void op_lwr(const Instruction& instruction);
 };

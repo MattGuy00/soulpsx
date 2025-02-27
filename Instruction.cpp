@@ -37,6 +37,7 @@ std::string_view Instruction::type_string() const {
 		case lb: return "lb";
 		case lbu: return "lbu";
 		case lhu: return "lhu";
+		case lwr: return "lwr";
 		case lh: return "lh";
 		case sw: return "sw";
 		case jump: return "jump";
@@ -78,6 +79,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 		case 0b100100: return lbu;
 		case 0b100101: return lhu;
 		case 0b100001: return lh;
+		case 0b100110: return lwr;
 		case 0b101011: return sw;
 		case 0b101001: return sh;
 		case 0b101000: return sb;
