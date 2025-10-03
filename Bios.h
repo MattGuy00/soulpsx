@@ -1,5 +1,4 @@
 #pragma once
-
 #include <cstdint>
 #include <array>
 #include <fstream>
@@ -12,6 +11,7 @@ public:
 		std::ifstream bios_file { bios_path, std::ios::binary };
 		if (!bios_file.good()) {
 			std::cerr << "Bad BIOS file.\n";
+			std::exit(1);
 		}
 
 		bios_file.read(reinterpret_cast<char*>(m_rom.data()), m_bios_size);

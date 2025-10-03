@@ -263,6 +263,7 @@ void Cpu::fetch_decode_execute() {
 		m_registers = m_temp_registers;
 		m_cop0_registers = m_cop0_temp_registers;
 	}
+
 }
 
 void Cpu::set_register(Register reg, uint32_t data) {
