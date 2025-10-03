@@ -13,6 +13,6 @@ CMakeUserPresets.json
 .cache
 soulpsx
 scph1001.bin
-Dependencies
+Dependencies/imgui/*
 .idea
 .DS_Store
