@@ -12,6 +12,8 @@ add_executable(soulpsx
 	Ram.cpp
 	Cpu.cpp
 	Bus.cpp
+		Gui.cpp
+		Gui.h
 
 	# Quick way to add imgui to the project. Need to come and clean up later
 	Dependencies/imgui/imconfig.h

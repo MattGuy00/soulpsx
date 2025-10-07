@@ -10,260 +10,257 @@
 #include <span>
 
 void Cpu::fetch_decode_execute() {
-	for (;;) {
-		if (m_pc % 4 != 0) {
-			exception(Exception::load_address_error);
-			continue;
-		}
-
-		Instruction instruction { Instruction(read_memory(m_pc, 4)) };	
-
-		// Print address and instruction
-		std::cout << std::hex << m_bus.to_physical_address(m_pc) << ":";
-		std::cout << (instruction.data() >> 24);
-		std::cout << ((instruction.data() >> 16) & 0xff);
-		std::cout << ((instruction.data() >> 8) & 0xff);
-		std::cout << (instruction.data() & 0xff);
-		std::cout << ": ";
-		
-		m_current_pc = m_pc;
-		m_pc = m_next_pc;
-		m_next_pc += 4;
-		
-		m_is_branch_delay = m_was_branch;
-		m_was_branch = false;
-
-		// load the delayed data into the temp registers.
-		// The next next instruction won't see the new values yet.
-		// Also allows for the instruction to overwrite the delay slot's data
-		// which is a thing
-		if (m_load_delay_slot) {
-			set_register(m_load_delay_slot->reg, m_load_delay_slot->data);
-			m_load_delay_slot = std::nullopt;
-		}
-			
-		using enum Instruction::Opcode;
-		switch (instruction.opcode()) {
-			case andi: {
-				op_andi(instruction);
-				break;
-			}
-			case and_b: {
-				op_and(instruction);
-				break;
-			}
-			case or_b: {
-				op_or(instruction);
-				break;
-			}
-			case ori: {
-				op_ori(instruction);
-				break;
-			}
-			case nor: {
-				op_nor(instruction);
-				break;
-			}
-			case Xor: {
-				op_xor(instruction);
-				return;
-				break;
-			}
-			case addiu: {
-				op_addiu(instruction);
-				break;
-			}
-			case addi: {
-				op_addi(instruction);
-				break;
-			}
-			case addu: {
-				op_addu(instruction);
-				break;
-			}
-			case add: {
-				op_add(instruction);
-				break;
-			}
-			case subu: {
-				op_subu(instruction);
-				break;
-			}
-			case div: {
-				op_div(instruction);
-				break;
-			}
-			case divu: {
-				op_divu(instruction);
-				break;
-			}
-			case multu: {
-				op_multu(instruction);
-				break;
-			}
-			case slt: {
-				op_slt(instruction);
-				break;
-			}
-			case sltu: {
-				op_sltu(instruction);
-				break;
-			}
-			case slti: {
-				op_slti(instruction);
-				break;
-			}
-			case sltiu: {
-				op_sltiu(instruction);
-				break;
-			}
-			case sll: {
-				op_sll(instruction);
-				break;
-			}
-			case sllv: {
-				op_sllv(instruction);
-				break;
-			}
-			case srl: {
-				op_srl(instruction);
-				break;
-			}
-			case srav: {
-				op_srav(instruction);
-				break;
-			}
-			case srlv: {
-				op_srlv(instruction);
-				break;
-			}
-			case sra: {
-				op_sra(instruction);
-				break;
-			}
-			case lw: {
-				op_lw(instruction);
-				break;
-			}
-			case lb: {
-				op_lb(instruction);
-				break;
-			}
-			case lbu: {
-				op_lbu(instruction);
-				break;
-			}
-			case lhu: {
-				op_lhu(instruction);
-				break;
-			}
-			case lh: {
-				op_lh(instruction);
-				break;
-			}
-			case lwr: {
-				op_lwr(instruction);
-				break;
-			}
-			case sw: {
-				op_sw(instruction);
-				break;
-			}
-			case sh: {
-				op_sh(instruction);
-				break;
-			}
-			case sb: {
-				op_sb(instruction);
-				break;
-			}
-			case lui: {
-				op_lui(instruction);
-				break;
-			}
-			case jump: {
-				op_jump(instruction);
-				break;
-			}
-			case jal: {
-				op_jal(instruction);
-				break;
-			}
-			case jalr: {
-				op_jalr(instruction);
-				break;
-			}
-			case jr: {
-				op_jr(instruction);
-				break;
-			}
-			case bne: {
-				op_bne(instruction);
-				break;
-			}
-			case beq: {
-				op_beq(instruction);
-				break;
-			}
-			case bgtz: {
-				op_bgtz(instruction);
-				break;
-			}
-			case bgez: {
-				op_bgez(instruction);
-				break;
-			}
-			case blez: {
-				op_blez(instruction);
-				break;
-			}
-			case bltz: {
-				op_bltz(instruction);
-				break;
-			}
-			case mflo: {
-				op_mflo(instruction);
-				break;
-			}
-			case mfhi: {
-				op_mfhi(instruction);
-				break;
-			}
-			case mtlo: {
-				op_mtlo(instruction);
-				break;
-			}
-			case mthi: {
-				op_mthi(instruction);
-				break;
-			}
-			case mtc0: {
-				op_mtc0(instruction);
-				break;
-			}
-			case mfc0: {
-				op_mfc0(instruction);
-				break;
-			}
-			case syscall: {
-				op_syscall(instruction);
-				break;
-			}
-			case rfe: {
-				op_rfe(instruction);
-				break;
-			}
-			case unknown: {
-				std::cout << instruction << '\n';
-				return;
-			}
-		}
-		
-		// Update the registers
-		m_registers = m_temp_registers;
-		m_cop0_registers = m_cop0_temp_registers;
+	if (m_pc % 4 != 0) {
+		exception(Exception::load_address_error);
+		return;
 	}
 
+	Instruction instruction { Instruction(read_memory(m_pc, 4)) };
+
+	// Print address and instruction
+	std::cout << std::hex << m_bus.to_physical_address(m_pc) << ":";
+	std::cout << (instruction.data() >> 24);
+	std::cout << ((instruction.data() >> 16) & 0xff);
+	std::cout << ((instruction.data() >> 8) & 0xff);
+	std::cout << (instruction.data() & 0xff);
+	std::cout << ": ";
+
+	m_current_pc = m_pc;
+	m_pc = m_next_pc;
+	m_next_pc += 4;
+
+	m_is_branch_delay = m_was_branch;
+	m_was_branch = false;
+
+	// load the delayed data into the temp registers.
+	// The next next instruction won't see the new values yet.
+	// Also allows for the instruction to overwrite the delay slot's data
+	// which is a thing
+	if (m_load_delay_slot) {
+		set_register(m_load_delay_slot->reg, m_load_delay_slot->data);
+		m_load_delay_slot = std::nullopt;
+	}
+
+	using enum Instruction::Opcode;
+	switch (instruction.opcode()) {
+		case andi: {
+			op_andi(instruction);
+			break;
+		}
+		case and_b: {
+			op_and(instruction);
+			break;
+		}
+		case or_b: {
+			op_or(instruction);
+			break;
+		}
+		case ori: {
+			op_ori(instruction);
+			break;
+		}
+		case nor: {
+			op_nor(instruction);
+			break;
+		}
+		case Xor: {
+			op_xor(instruction);
+			return;
+			break;
+		}
+		case addiu: {
+			op_addiu(instruction);
+			break;
+		}
+		case addi: {
+			op_addi(instruction);
+			break;
+		}
+		case addu: {
+			op_addu(instruction);
+			break;
+		}
+		case add: {
+			op_add(instruction);
+			break;
+		}
+		case subu: {
+			op_subu(instruction);
+			break;
+		}
+		case div: {
+			op_div(instruction);
+			break;
+		}
+		case divu: {
+			op_divu(instruction);
+			break;
+		}
+		case multu: {
+			op_multu(instruction);
+			break;
+		}
+		case slt: {
+			op_slt(instruction);
+			break;
+		}
+		case sltu: {
+			op_sltu(instruction);
+			break;
+		}
+		case slti: {
+			op_slti(instruction);
+			break;
+		}
+		case sltiu: {
+			op_sltiu(instruction);
+			break;
+		}
+		case sll: {
+			op_sll(instruction);
+			break;
+		}
+		case sllv: {
+			op_sllv(instruction);
+			break;
+		}
+		case srl: {
+			op_srl(instruction);
+			break;
+		}
+		case srav: {
+			op_srav(instruction);
+			break;
+		}
+		case srlv: {
+			op_srlv(instruction);
+			break;
+		}
+		case sra: {
+			op_sra(instruction);
+			break;
+		}
+		case lw: {
+			op_lw(instruction);
+			break;
+		}
+		case lb: {
+			op_lb(instruction);
+			break;
+		}
+		case lbu: {
+			op_lbu(instruction);
+			break;
+		}
+		case lhu: {
+			op_lhu(instruction);
+			break;
+		}
+		case lh: {
+			op_lh(instruction);
+			break;
+		}
+		case lwr: {
+			op_lwr(instruction);
+			break;
+		}
+		case sw: {
+			op_sw(instruction);
+			break;
+		}
+		case sh: {
+			op_sh(instruction);
+			break;
+		}
+		case sb: {
+			op_sb(instruction);
+			break;
+		}
+		case lui: {
+			op_lui(instruction);
+			break;
+		}
+		case jump: {
+			op_jump(instruction);
+			break;
+		}
+		case jal: {
+			op_jal(instruction);
+			break;
+		}
+		case jalr: {
+			op_jalr(instruction);
+			break;
+		}
+		case jr: {
+			op_jr(instruction);
+			break;
+		}
+		case bne: {
+			op_bne(instruction);
+			break;
+		}
+		case beq: {
+			op_beq(instruction);
+			break;
+		}
+		case bgtz: {
+			op_bgtz(instruction);
+			break;
+		}
+		case bgez: {
+			op_bgez(instruction);
+			break;
+		}
+		case blez: {
+			op_blez(instruction);
+			break;
+		}
+		case bltz: {
+			op_bltz(instruction);
+			break;
+		}
+		case mflo: {
+			op_mflo(instruction);
+			break;
+		}
+		case mfhi: {
+			op_mfhi(instruction);
+			break;
+		}
+		case mtlo: {
+			op_mtlo(instruction);
+			break;
+		}
+		case mthi: {
+			op_mthi(instruction);
+			break;
+		}
+		case mtc0: {
+			op_mtc0(instruction);
+			break;
+		}
+		case mfc0: {
+			op_mfc0(instruction);
+			break;
+		}
+		case syscall: {
+			op_syscall(instruction);
+			break;
+		}
+		case rfe: {
+			op_rfe(instruction);
+			break;
+		}
+		case unknown: {
+			std::cout << instruction << '\n';
+			return;
+		}
+	}
+
+	// Update the registers
+	m_registers = m_temp_registers;
+	m_cop0_registers = m_cop0_temp_registers;
 }
 
 void Cpu::set_register(Register reg, uint32_t data) {

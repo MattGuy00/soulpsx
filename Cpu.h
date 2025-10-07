@@ -15,6 +15,9 @@ public:
 	}
 
 	void fetch_decode_execute();
+
+	std::string_view register_name(Register reg);
+	uint32_t get_register_data(Register reg);
 private:
 	Bus& m_bus;
 	
@@ -42,9 +45,7 @@ private:
 
 	
 	void set_register(Register reg, uint32_t data);
-	uint32_t get_register_data(Register reg);
-	std::string_view register_name(Register reg);
-	
+
 	void cop0_set_register(Cop0_Register reg, uint32_t data);
 	uint32_t cop0_get_register_data(Cop0_Register reg);
 	std::string_view cop0_register_name(Cop0_Register reg) const;
