@@ -15,14 +15,14 @@ void Cpu::fetch_decode_execute() {
 		return;
 	}
 
-	Instruction instruction { Instruction(read_memory(m_pc, 4)) };
+	m_current_instruction = Instruction(read_memory(m_pc, 4));
 
 	// Print address and instruction
 	std::cout << std::hex << m_bus.to_physical_address(m_pc) << ":";
-	std::cout << (instruction.data() >> 24);
-	std::cout << ((instruction.data() >> 16) & 0xff);
-	std::cout << ((instruction.data() >> 8) & 0xff);
-	std::cout << (instruction.data() & 0xff);
+	std::cout << (m_current_instruction.data() >> 24);
+	std::cout << ((m_current_instruction.data() >> 16) & 0xff);
+	std::cout << ((m_current_instruction.data() >> 8) & 0xff);
+	std::cout << (m_current_instruction.data() & 0xff);
 	std::cout << ": ";
 
 	m_current_pc = m_pc;
@@ -42,218 +42,218 @@ void Cpu::fetch_decode_execute() {
 	}
 
 	using enum Instruction::Opcode;
-	switch (instruction.opcode()) {
+	switch (m_current_instruction.opcode()) {
 		case andi: {
-			op_andi(instruction);
+			op_andi(m_current_instruction);
 			break;
 		}
 		case and_b: {
-			op_and(instruction);
+			op_and(m_current_instruction);
 			break;
 		}
 		case or_b: {
-			op_or(instruction);
+			op_or(m_current_instruction);
 			break;
 		}
 		case ori: {
-			op_ori(instruction);
+			op_ori(m_current_instruction);
 			break;
 		}
 		case nor: {
-			op_nor(instruction);
+			op_nor(m_current_instruction);
 			break;
 		}
 		case Xor: {
-			op_xor(instruction);
+			op_xor(m_current_instruction);
 			return;
 			break;
 		}
 		case addiu: {
-			op_addiu(instruction);
+			op_addiu(m_current_instruction);
 			break;
 		}
 		case addi: {
-			op_addi(instruction);
+			op_addi(m_current_instruction);
 			break;
 		}
 		case addu: {
-			op_addu(instruction);
+			op_addu(m_current_instruction);
 			break;
 		}
 		case add: {
-			op_add(instruction);
+			op_add(m_current_instruction);
 			break;
 		}
 		case subu: {
-			op_subu(instruction);
+			op_subu(m_current_instruction);
 			break;
 		}
 		case div: {
-			op_div(instruction);
+			op_div(m_current_instruction);
 			break;
 		}
 		case divu: {
-			op_divu(instruction);
+			op_divu(m_current_instruction);
 			break;
 		}
 		case multu: {
-			op_multu(instruction);
+			op_multu(m_current_instruction);
 			break;
 		}
 		case slt: {
-			op_slt(instruction);
+			op_slt(m_current_instruction);
 			break;
 		}
 		case sltu: {
-			op_sltu(instruction);
+			op_sltu(m_current_instruction);
 			break;
 		}
 		case slti: {
-			op_slti(instruction);
+			op_slti(m_current_instruction);
 			break;
 		}
 		case sltiu: {
-			op_sltiu(instruction);
+			op_sltiu(m_current_instruction);
 			break;
 		}
 		case sll: {
-			op_sll(instruction);
+			op_sll(m_current_instruction);
 			break;
 		}
 		case sllv: {
-			op_sllv(instruction);
+			op_sllv(m_current_instruction);
 			break;
 		}
 		case srl: {
-			op_srl(instruction);
+			op_srl(m_current_instruction);
 			break;
 		}
 		case srav: {
-			op_srav(instruction);
+			op_srav(m_current_instruction);
 			break;
 		}
 		case srlv: {
-			op_srlv(instruction);
+			op_srlv(m_current_instruction);
 			break;
 		}
 		case sra: {
-			op_sra(instruction);
+			op_sra(m_current_instruction);
 			break;
 		}
 		case lw: {
-			op_lw(instruction);
+			op_lw(m_current_instruction);
 			break;
 		}
 		case lb: {
-			op_lb(instruction);
+			op_lb(m_current_instruction);
 			break;
 		}
 		case lbu: {
-			op_lbu(instruction);
+			op_lbu(m_current_instruction);
 			break;
 		}
 		case lhu: {
-			op_lhu(instruction);
+			op_lhu(m_current_instruction);
 			break;
 		}
 		case lh: {
-			op_lh(instruction);
+			op_lh(m_current_instruction);
 			break;
 		}
 		case lwr: {
-			op_lwr(instruction);
+			op_lwr(m_current_instruction);
 			break;
 		}
 		case sw: {
-			op_sw(instruction);
+			op_sw(m_current_instruction);
 			break;
 		}
 		case sh: {
-			op_sh(instruction);
+			op_sh(m_current_instruction);
 			break;
 		}
 		case sb: {
-			op_sb(instruction);
+			op_sb(m_current_instruction);
 			break;
 		}
 		case lui: {
-			op_lui(instruction);
+			op_lui(m_current_instruction);
 			break;
 		}
 		case jump: {
-			op_jump(instruction);
+			op_jump(m_current_instruction);
 			break;
 		}
 		case jal: {
-			op_jal(instruction);
+			op_jal(m_current_instruction);
 			break;
 		}
 		case jalr: {
-			op_jalr(instruction);
+			op_jalr(m_current_instruction);
 			break;
 		}
 		case jr: {
-			op_jr(instruction);
+			op_jr(m_current_instruction);
 			break;
 		}
 		case bne: {
-			op_bne(instruction);
+			op_bne(m_current_instruction);
 			break;
 		}
 		case beq: {
-			op_beq(instruction);
+			op_beq(m_current_instruction);
 			break;
 		}
 		case bgtz: {
-			op_bgtz(instruction);
+			op_bgtz(m_current_instruction);
 			break;
 		}
 		case bgez: {
-			op_bgez(instruction);
+			op_bgez(m_current_instruction);
 			break;
 		}
 		case blez: {
-			op_blez(instruction);
+			op_blez(m_current_instruction);
 			break;
 		}
 		case bltz: {
-			op_bltz(instruction);
+			op_bltz(m_current_instruction);
 			break;
 		}
 		case mflo: {
-			op_mflo(instruction);
+			op_mflo(m_current_instruction);
 			break;
 		}
 		case mfhi: {
-			op_mfhi(instruction);
+			op_mfhi(m_current_instruction);
 			break;
 		}
 		case mtlo: {
-			op_mtlo(instruction);
+			op_mtlo(m_current_instruction);
 			break;
 		}
 		case mthi: {
-			op_mthi(instruction);
+			op_mthi(m_current_instruction);
 			break;
 		}
 		case mtc0: {
-			op_mtc0(instruction);
+			op_mtc0(m_current_instruction);
 			break;
 		}
 		case mfc0: {
-			op_mfc0(instruction);
+			op_mfc0(m_current_instruction);
 			break;
 		}
 		case syscall: {
-			op_syscall(instruction);
+			op_syscall(m_current_instruction);
 			break;
 		}
 		case rfe: {
-			op_rfe(instruction);
+			op_rfe(m_current_instruction);
 			break;
 		}
 		case unknown: {
-			std::cout << instruction << '\n';
+			std::cout << m_current_instruction << '\n';
 			return;
 		}
 	}
@@ -321,8 +321,6 @@ void Cpu::load_delay_data(Register reg, uint32_t data) {
 	m_load_delay_slot = { reg, data };
 }
 
-// I dont really understand much of this function yet
-// Credit to Lionel Flandrin
 void Cpu::exception(Exception excode) {
 	uint32_t sr { cop0_get_register_data(Cop0_Register::sr) };
 	// Find exception handler address based on BEV bit
@@ -350,7 +348,7 @@ void Cpu::exception(Exception excode) {
 	m_pc = handler;
 	m_next_pc = m_pc + 4;
 
-	std::cout << exception_name(excode) << " exception occured\n";
+	std::cout << exception_name(excode) << " exception occurred\n";
 }
 
 void Cpu::op_lwr(const Instruction& instruction) {
@@ -836,7 +834,7 @@ void Cpu::op_bne(const Instruction& instruction) {
 	}
 
 	std::cout << instruction << ' ';
-	std::cout << rs_data << ", " << rt_data << ", " << offset << '\n';
+	std::cout << rs_data << ", " << rt_data << ", " << m_bus.to_physical_address(m_next_pc) << '\n';
 }
 
 void Cpu::op_mtc0(const Instruction& instruction) {
@@ -918,7 +916,7 @@ void Cpu::op_sll(const Instruction& instruction) {
 	std::cout << rt_data << ", " << instruction.sa() << '\n';
 }
 
-std::string_view Cpu::register_name(Register reg) { 
+std::string_view Cpu::register_name(Register reg) const {
 	using enum Register;
 	switch (reg) {
 		case zero: return "r0";
@@ -953,6 +951,7 @@ std::string_view Cpu::register_name(Register reg) {
 		case sp: return "sp";
 		case fp: return "fp";
 		case ra: return "ra";
+		default: return "unknown";
 	}
 }
 

@@ -16,8 +16,15 @@ public:
 
 	void fetch_decode_execute();
 
-	std::string_view register_name(Register reg);
+	std::string_view register_name(Register reg) const;
 	uint32_t get_register_data(Register reg);
+
+	uint32_t cop0_get_register_data(Cop0_Register reg);
+	std::string_view cop0_register_name(Cop0_Register reg) const;
+
+	Instruction get_current_instruction() const { return m_current_instruction; }
+	uint32_t get_pc() const { return m_pc; }
+	uint32_t get_next_pc() const { return m_next_pc; }
 private:
 	Bus& m_bus;
 	
@@ -40,6 +47,8 @@ private:
 	uint32_t m_hi {};
 	uint32_t m_lo {};
 
+	Instruction m_current_instruction {};
+
 	std::span<const std::byte> read_memory(uint32_t address, uint32_t bytes);
 	void write_memory(uint32_t address, std::span<const std::byte> data);
 
@@ -47,9 +56,7 @@ private:
 	void set_register(Register reg, uint32_t data);
 
 	void cop0_set_register(Cop0_Register reg, uint32_t data);
-	uint32_t cop0_get_register_data(Cop0_Register reg);
-	std::string_view cop0_register_name(Cop0_Register reg) const;
-	
+
 	// Delay moving data from memory into registers by 1 cycle
 	struct Load_delay {
 		Register reg {};

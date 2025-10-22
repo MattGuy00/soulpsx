@@ -1,4 +1,7 @@
 #pragma once
+
+#include "Instruction.h"
+#include <deque>
 #include <string_view>
 
 #include "Dependencies/imgui/imgui.h"
@@ -31,4 +34,8 @@ private:
    ImVec4 m_clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
    Cpu* m_cpu {};
+
+   std::deque<Instruction> m_executed_instructions;
+   void render_instruction();
+   std::string instruction_to_string(std::string_view instruction_name, const std::vector<std::string_view>& values);
 };

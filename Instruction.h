@@ -147,6 +147,10 @@ public:
 		m_opcode = determine_opcode(m_data);
 	}
 
+	explicit Instruction() {
+		m_opcode = Opcode::unknown;
+	}
+
 	explicit Instruction(uint32_t data) : m_data { data }, m_opcode { determine_opcode(data) } {}
 	
 	Register rs() const { return static_cast<Register>((m_data >> 21) & 0b11111); }
@@ -179,6 +183,7 @@ public:
 		return out;
 	}
 
+	static constexpr uint8_t instruction_length { 4 };
 private:
 	uint32_t m_data {};
 	Opcode m_opcode {};

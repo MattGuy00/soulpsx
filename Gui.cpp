@@ -1,5 +1,9 @@
 #include "Gui.h"
+
+#include <sstream>
+
 #include "Cpu.h"
+#include "Instruction.h"
 #include "Dependencies/imgui/imgui.h"
 #include "Dependencies/imgui/imgui_impl_sdl3.h"
 #include "Dependencies/imgui/imgui_impl_sdlrenderer3.h"
@@ -76,6 +80,7 @@ Gui::Gui(Cpu* cpu, int width, int height)
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to Initialise SDL: %s", SDL_GetError());
         m_init_failed = true;
     }
+
 }
 
 Gui::~Gui() {
@@ -94,20 +99,41 @@ void Gui::render() {
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::ShowDemoWindow();
     if (m_cpu) {
-        ImGui::Begin("Registers", 0, ImGuiWindowFlags_AlwaysAutoResize);
-        for (int i = 0; i < 32; i++) {
-            if (i != 0 && i % 4 != 0) {
-                ImGui::SameLine();
+        ImGui::Begin("Registers", 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+        ImGui::BeginTabBar("Registers");
+        if (ImGui::BeginTabItem("CPU Registers")) {
+            for (int i = 0; i < 32; i++) {
+                if (i != 0 && i % 4 != 0) {
+                    ImGui::SameLine();
+                }
+                Register reg { static_cast<Register>(i) };
+                uint32_t value { m_cpu->get_register_data(reg) };
+                ImGui::TextColored({0, 80, 200, 1}, "%s:", m_cpu->register_name(reg).data());
+                ImGui::SameLine( );
+                ImGui::Text("0x%08x", value);
             }
-            Register reg { static_cast<Register>(i) };
-            uint32_t value { m_cpu->get_register_data(reg) };
-            ImGui::TextColored({0, 80, 200, 1}, "%s:", m_cpu->register_name(reg).data());
-            ImGui::SameLine( );
-            ImGui::Text("0x%08x", value);
+
+            ImGui::EndTabItem();
         }
+
+        if (ImGui::BeginTabItem("COP0 Registers")) {
+            for (int i = 0; i < 16; i++) {
+                if (i != 0 && i % 4 != 0) {
+                    ImGui::SameLine();
+                }
+                Cop0_Register reg { static_cast<Cop0_Register>(i) };
+                uint32_t value { m_cpu->cop0_get_register_data(reg) };
+                ImGui::TextColored({0, 80, 200, 1}, "%s:", m_cpu->cop0_register_name(reg).data());
+                ImGui::SameLine( );
+                ImGui::Text("0x%08x", value);
+            }
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
         ImGui::End();
+
+        render_instruction();
     }
 
     ImGui::Render();
@@ -117,4 +143,221 @@ void Gui::render() {
     SDL_RenderClear(m_renderer);
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), m_renderer);
     SDL_RenderPresent(m_renderer);
+}
+
+void Gui::render_instruction() {
+    ImGui::Begin("Instructions", 0, ImGuiWindowFlags_NoCollapse);
+    ImGui::BeginChild("Instructions", {640, 320}, ImGuiChildFlags_AutoResizeX);
+
+    if (m_executed_instructions.size() >= 1000) {
+        m_executed_instructions.pop_front();
+    }
+
+    m_executed_instructions.emplace_back(m_cpu->get_current_instruction());
+    for (const auto& instruction : m_executed_instructions) {
+        ImGui::Text("0x%08x:", m_cpu->get_pc());
+        ImGui::SameLine();
+
+        std::string output {};
+        switch (instruction.opcode()) {
+            case Instruction::Opcode::add:
+            case Instruction::Opcode::addu:
+            case Instruction::Opcode::subu:
+            case Instruction::Opcode::slt:
+            case Instruction::Opcode::sltu:
+            case Instruction::Opcode::and_b:
+            case Instruction::Opcode::or_b:
+            case Instruction::Opcode::Xor:
+            case Instruction::Opcode::nor: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rd()),
+                    m_cpu->register_name(instruction.rs()),
+                    m_cpu->register_name(instruction.rt()),
+                });
+                break;
+            }
+            case Instruction::Opcode::sllv:
+            case Instruction::Opcode::srlv:
+            case Instruction::Opcode::srav: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rd()),
+                    m_cpu->register_name(instruction.rt()),
+                    m_cpu->register_name(instruction.rs()),
+                });
+                break;
+            }
+            case Instruction::Opcode::addi:
+            case Instruction::Opcode::slti:
+            case Instruction::Opcode::andi:
+            case Instruction::Opcode::ori: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << instruction.imm16_se();
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rt()),
+                    m_cpu->register_name(instruction.rs()),
+                    value_as_hex.str()
+                });
+                break;
+            }
+            case Instruction::Opcode::addiu:
+            case Instruction::Opcode::sltiu: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << instruction.imm16_se();
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rt()),
+                    m_cpu->register_name(instruction.rs()),
+                    value_as_hex.str()
+                });
+                break;
+            }
+            case Instruction::Opcode::sll:
+            case Instruction::Opcode::srl:
+            case Instruction::Opcode::sra: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << instruction.imm16_se();
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rd()),
+                    m_cpu->register_name(instruction.rt()),
+                    value_as_hex.str()
+                });
+                break;
+            }
+            case Instruction::Opcode::lui: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << instruction.imm16_se();
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rt()),
+                    value_as_hex.str()
+                });
+                break;
+            }
+            case Instruction::Opcode::multu:
+            case Instruction::Opcode::div:
+            case Instruction::Opcode::divu: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rs()),
+                    m_cpu->register_name(instruction.rt())
+                });
+                break;
+            }
+            case Instruction::Opcode::mfhi:
+            case Instruction::Opcode::mflo: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rd()),
+                });
+                break;
+            }
+            case Instruction::Opcode::mthi:
+            case Instruction::Opcode::mtlo: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rs()),
+                });
+                break;
+            }
+            case Instruction::Opcode::jump:
+            case Instruction::Opcode::jal: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << m_cpu->get_next_pc();
+                output = instruction_to_string(instruction.type_string(), {
+                    value_as_hex.str()
+                });
+                break;
+            }
+            case Instruction::Opcode::jr: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rs()),
+                });
+                break;
+            }
+            case Instruction::Opcode::jalr: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rd()),
+                    m_cpu->register_name(instruction.rs()),
+                });
+                break;
+            }
+            case Instruction::Opcode::beq:
+            case Instruction::Opcode::bne: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << m_cpu->get_next_pc();
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rs()),
+                    m_cpu->register_name(instruction.rt()),
+                    value_as_hex.str()
+                });
+                break;
+            }
+            case Instruction::Opcode::bltz:
+            case Instruction::Opcode::bgez:
+            case Instruction::Opcode::bgtz:
+            case Instruction::Opcode::blez: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << m_cpu->get_next_pc();
+                output = instruction_to_string(instruction.type_string(), {
+                m_cpu->register_name(instruction.rs()),
+                    value_as_hex.str()
+                });
+                break;
+            }
+            case Instruction::Opcode::syscall: {
+                output = instruction_to_string(instruction.type_string(), {
+                });
+                break;
+            }
+            case Instruction::Opcode::lb:
+            case Instruction::Opcode::lbu:
+            case Instruction::Opcode::lh:
+            case Instruction::Opcode::lhu:
+            case Instruction::Opcode::lw:
+            case Instruction::Opcode::sb:
+            case Instruction::Opcode::sh:
+            case Instruction::Opcode::sw:
+            case Instruction::Opcode::lwr: {
+                std::stringstream value_as_hex;
+                value_as_hex << "0x" << std::hex << instruction.imm16_se();
+                std::string load_address { value_as_hex.str() };
+                load_address += "(";
+                load_address += m_cpu->register_name(instruction.rs());
+                load_address += ")";
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rt()),
+                    load_address
+                });
+                break;
+            }
+            case Instruction::Opcode::mfc0:
+            case Instruction::Opcode::mtc0: {
+                output = instruction_to_string(instruction.type_string(), {
+                    m_cpu->register_name(instruction.rt()),
+                    m_cpu->register_name(instruction.rd())
+                });
+                break;
+            }
+            case Instruction::Opcode::rfe:
+            case Instruction::Opcode::unknown: {
+                output = instruction_to_string(instruction.type_string(), {});
+                break;
+            }
+        }
+
+        ImGui::Text("%s", output.data());
+    }
+
+    ImGui::EndChild();
+    ImGui::End();
+}
+
+// Helper function that takes an instruction name and the registers to modify, or immediate values as strings
+// and prepares them for printing.
+std::string Gui::instruction_to_string(std::string_view instruction_name, const std::vector<std::string_view>& values) {
+    std::string output { instruction_name };
+    output += " ";
+    for (int i = 0; i < values.size(); i++) {
+        output += values[i];
+        if (i != values.size() - 1) {
+            output += ", ";
+        }
+    }
+
+    return output;
 }
