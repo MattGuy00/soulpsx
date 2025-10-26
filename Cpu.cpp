@@ -14,16 +14,8 @@ void Cpu::fetch_decode_execute() {
 		exception(Exception::load_address_error);
 		return;
 	}
-
+	m_current_read_region = m_bus.get_region(m_pc);
 	m_current_instruction = Instruction(read_memory(m_pc, 4));
-
-	// Print address and instruction
-	std::cout << std::hex << m_bus.to_physical_address(m_pc) << ":";
-	std::cout << (m_current_instruction.data() >> 24);
-	std::cout << ((m_current_instruction.data() >> 16) & 0xff);
-	std::cout << ((m_current_instruction.data() >> 8) & 0xff);
-	std::cout << (m_current_instruction.data() & 0xff);
-	std::cout << ": ";
 
 	m_current_pc = m_pc;
 	m_pc = m_next_pc;
@@ -253,7 +245,6 @@ void Cpu::fetch_decode_execute() {
 			break;
 		}
 		case unknown: {
-			std::cout << m_current_instruction << '\n';
 			return;
 		}
 	}
@@ -268,7 +259,7 @@ void Cpu::set_register(Register reg, uint32_t data) {
 	m_temp_registers[0] = 0;
 }
 
-uint32_t Cpu::get_register_data(Register reg) {
+uint32_t Cpu::get_register_data(Register reg) const {
 	return m_registers[static_cast<uint32_t>(reg)];
 }
 
@@ -277,7 +268,7 @@ void Cpu::cop0_set_register(Cop0_Register reg, uint32_t data) {
 	m_cop0_temp_registers[0] = 0;
 }
 
-uint32_t Cpu::cop0_get_register_data(Cop0_Register reg) {
+uint32_t Cpu::cop0_get_register_data(Cop0_Register reg) const {
 	return m_cop0_registers[static_cast<uint32_t>(reg)];
 }
 
@@ -348,7 +339,6 @@ void Cpu::exception(Exception excode) {
 	m_pc = handler;
 	m_next_pc = m_pc + 4;
 
-	std::cout << exception_name(excode) << " exception occurred\n";
 }
 
 void Cpu::op_lwr(const Instruction& instruction) {
@@ -367,8 +357,6 @@ void Cpu::op_lwr(const Instruction& instruction) {
 	
 	load_delay_data(instruction.rt(), latest_value);
 
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::hex << address << '\n';
 }
 
 void Cpu::op_xor(const Instruction& instruction) {
@@ -376,9 +364,6 @@ void Cpu::op_xor(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 
 	set_register(instruction.rd(), rs_data ^ rt_data);
-	
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rs_data << " ^ " << rt_data << " (" << (rs_data ^ rt_data) << ")\n";
 }
 
 void Cpu::op_multu(const Instruction& instruction) {
@@ -389,9 +374,6 @@ void Cpu::op_multu(const Instruction& instruction) {
 	// Store first 32 bits in lo and the rest in hi
 	m_lo = result;
 	m_hi = result >> 32;
-
-	std::cout << instruction << ' ' << register_name(instruction.rs()) << ", ";
-	std::cout << register_name(instruction.rt()) << '\n';
 }
 
 void Cpu::op_srlv(const Instruction& instruction) {
@@ -399,9 +381,6 @@ void Cpu::op_srlv(const Instruction& instruction) {
 	uint32_t sa { get_register_data(instruction.rs()) & 0b11111 };
 
 	set_register(instruction.rd(), rt_data >> sa);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rt_data << ", " << std::dec << sa << '\n';
 }
 
 void Cpu::op_srav(const Instruction& instruction) {
@@ -409,9 +388,6 @@ void Cpu::op_srav(const Instruction& instruction) {
 	uint32_t sa { get_register_data(instruction.rs()) & 0b11111 };
 
 	set_register(instruction.rd(), rt_data >> sa);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rt_data << ", " << std::dec << sa << '\n';
 }
 
 void Cpu::op_nor(const Instruction& instruction) {
@@ -419,9 +395,6 @@ void Cpu::op_nor(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 
 	set_register(instruction.rd(), !(rs_data | rt_data));
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rs_data << " nor " << rt_data << '\n';
 }
 
 void Cpu::op_lh(const Instruction& instruction) {
@@ -432,9 +405,6 @@ void Cpu::op_lh(const Instruction& instruction) {
 	}
 
 	load_delay_data(instruction.rt(), static_cast<int16_t>(to_16(read_memory(address, 2))));
-	
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::hex << address << '\n';
 }
 
 void Cpu::op_sllv(const Instruction& instruction) {
@@ -442,9 +412,6 @@ void Cpu::op_sllv(const Instruction& instruction) {
 	uint32_t sa { get_register_data(instruction.rs()) & 0b11111 };
 
 	set_register(instruction.rd(), rt_data << sa);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rt_data << ", " << std::dec << sa << '\n';
 }
 
 void Cpu::op_lhu(const Instruction& instruction) {
@@ -455,9 +422,6 @@ void Cpu::op_lhu(const Instruction& instruction) {
 	}
 
 	load_delay_data(instruction.rt(), to_16(read_memory(address, 2)));
-	
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::hex << address << '\n';
 }
 
 void Cpu::op_rfe(const Instruction& instruction) {
@@ -472,28 +436,20 @@ void Cpu::op_rfe(const Instruction& instruction) {
 	sr |= status_bits;
 
 	cop0_set_register(Cop0_Register::sr, sr);
-
-	std::cout << instruction << '\n';
 }
 
 void Cpu::op_mthi(const Instruction& instruction) {
 	uint32_t rs_data { get_register_data(instruction.rs()) };
 	m_hi = rs_data;
-
-	std::cout << instruction << ' ' << rs_data << '\n';
 }
 
 void Cpu::op_mtlo(const Instruction& instruction) {
 	uint32_t rs_data { get_register_data(instruction.rs()) };
 	m_lo = rs_data;
-
-	std::cout << instruction << ' ' << rs_data << '\n';
 }
 
 void Cpu::op_syscall(const Instruction& instruction) {
 	exception(Exception::syscall);
-
-	std::cout << instruction << '\n';
 }
 
 void Cpu::op_slt(const Instruction& instruction) {
@@ -501,15 +457,10 @@ void Cpu::op_slt(const Instruction& instruction) {
 	int rt_data { static_cast<int>(get_register_data(instruction.rt())) };
 	
 	set_register(instruction.rd(), rs_data < rt_data);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rs_data  << ", " << rt_data << '\n';
 }
 
 void Cpu::op_mfhi(const Instruction& instruction) {
 	set_register(instruction.rd(), m_hi);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << '\n';
 }
 
 void Cpu::op_divu(const Instruction& instruction) {
@@ -523,24 +474,16 @@ void Cpu::op_divu(const Instruction& instruction) {
 		m_lo = rs_data / divisor;
 		m_hi = rs_data % divisor;
 	}
-
-	std::cout << instruction << ' ' << rs_data << ", " << divisor << '\n';
 }
 
 void Cpu::op_sltiu(const Instruction& instruction) {
 	uint32_t rs_data { get_register_data(instruction.rs()) };
 	set_register(instruction.rt(), rs_data < instruction.imm16_se());
-
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << rs_data << " < " << instruction.imm16_se() << '\n';
 }
 
 void Cpu::op_srl(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	set_register(instruction.rd(), rt_data >> instruction.sa());
-	
-	std::cout << instruction << " " << register_name(instruction.rd()) << ", ";
-	std::cout << rt_data << ", " << instruction.sa() << '\n';
 }
 
 void Cpu::op_bgez(const Instruction& instruction) {
@@ -550,15 +493,10 @@ void Cpu::op_bgez(const Instruction& instruction) {
 	if (rs_data >= 0) {
 		branch(offset);
 	}
-
-	std::cout << instruction << ' ';
-	std::cout << rs_data << ", " << offset << '\n';
 }
 
 void Cpu::op_mflo(const Instruction& instruction) {
 	set_register(instruction.rd(), m_lo);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << '\n';
 }
 
 void Cpu::op_div(const Instruction& instruction) {
@@ -579,36 +517,24 @@ void Cpu::op_div(const Instruction& instruction) {
 		m_lo = static_cast<uint32_t>(rs_data / divisor);
 		m_hi = static_cast<uint32_t>(rs_data % divisor);
 	}
-
-	std::cout << instruction << ' ' << rs_data << ", " << divisor << '\n';
 }
 
 void Cpu::op_sra(const Instruction& instruction) {
 	int rt_data { static_cast<int>(get_register_data(instruction.rt())) };
 	int result { rt_data >> instruction.sa() };
 	set_register(instruction.rd(), result);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rt_data << " >> " << std::dec << instruction.sa() << " (";
-	std::cout << std::hex << result << ")\n";
 }
 
 void Cpu::op_subu(const Instruction& instruction) {
 	uint32_t rs_data { get_register_data(instruction.rs()) };
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	set_register(instruction.rd(), rs_data - rt_data);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rs_data << " - " << rt_data << '\n';
 }
 
 void Cpu::op_slti(const Instruction& instruction) {
 	int rs_data { static_cast<int>(get_register_data(instruction.rs())) };
 	int imm { static_cast<int>(instruction.imm16_se()) };
 	set_register(instruction.rt(), rs_data < imm);
-
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << rs_data << " < " << imm << '\n';
 }
 
 void Cpu::op_bltz(const Instruction& instruction) {
@@ -618,26 +544,17 @@ void Cpu::op_bltz(const Instruction& instruction) {
 	if (rs_data < 0) {
 		branch(offset);
 	}
-
-	std::cout << instruction << ' ';
-	std::cout << rs_data << ", " << offset << '\n';
 }
 
 void Cpu::op_jalr(const Instruction& instruction) {
 	set_register(instruction.rd(), m_next_pc);
 	m_next_pc = get_register_data(instruction.rs());
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << get_register_data(instruction.rs()) << '\n';
 }
 
 void Cpu::op_lbu(const Instruction& instruction) {
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
 	
 	load_delay_data(instruction.rt(), to_8(read_memory(address, 1)));
-	
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::hex << address << '\n';
 }
 
 void Cpu::op_blez(const Instruction& instruction) {
@@ -647,9 +564,6 @@ void Cpu::op_blez(const Instruction& instruction) {
 	if (rs_data <= 0) {
 		branch(offset);
 	}
-
-	std::cout << instruction << ' ';
-	std::cout << rs_data << ", " << offset << '\n';
 }
 
 void Cpu::op_bgtz(const Instruction& instruction) {
@@ -659,18 +573,12 @@ void Cpu::op_bgtz(const Instruction& instruction) {
 	if (rs_data > 0) {
 		branch(offset);
 	}
-
-	std::cout << instruction << ' ';
-	std::cout << rs_data << ", " << offset << '\n';
 }
 
 void Cpu::op_add(const Instruction& instruction) {
 	int rs_value { static_cast<int>(get_register_data(instruction.rs())) };
 	int rt_value { static_cast<int>(get_register_data(instruction.rt())) };
 	int64_t result { rs_value + rt_value };
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rs_value << " + " << rt_value << " (" << result << ")\n";
 
 	if (result > std::numeric_limits<int>::max()) {
 		exception(Exception::arithmetic_overflow);
@@ -684,17 +592,11 @@ void Cpu::op_and(const Instruction& instruction) {
 	uint32_t rs_data { get_register_data(instruction.rs()) };
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	set_register(instruction.rd(), rs_data & rt_data);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rs_data << " & " << rt_data << " (" << (rs_data & rt_data) << ")\n";
 }
 
 void Cpu::op_mfc0(const Instruction& instruction) {
 	uint32_t rd_data { cop0_get_register_data(instruction.cop0_rd()) };
 	load_delay_data(instruction.rt(), rd_data);
-
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << cop0_register_name(instruction.cop0_rd()) << '\n';
 }
 
 void Cpu::op_beq(const Instruction& instruction) {
@@ -705,16 +607,10 @@ void Cpu::op_beq(const Instruction& instruction) {
 	if (rs_data == rt_data) {
 		branch(offset);
 	}
-
-	std::cout << instruction << ' ';
-	std::cout << rs_data << ", " << rt_data << ", " << offset << '\n';
 }
 
 void Cpu::op_lb(const Instruction& instruction) {
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
-
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::hex << address << '\n';
 
 	load_delay_data(instruction.rt(), 
 				 static_cast<uint32_t>(static_cast<int8_t>(to_8(read_memory(address, 1)))));
@@ -723,8 +619,6 @@ void Cpu::op_lb(const Instruction& instruction) {
 void Cpu::op_jr(const Instruction& instruction) {
 	uint32_t address { get_register_data(instruction.rs()) };
 	m_next_pc = address;
-
-	std::cout << instruction << " " << address << '\n';
 }
 
 void Cpu::op_sb(const Instruction& instruction) {
@@ -737,17 +631,11 @@ void Cpu::op_sb(const Instruction& instruction) {
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
 	uint8_t result { static_cast<uint8_t>(get_register_data(instruction.rt())) };
 
-	std::cout << instruction << ' ' << std::hex << m_bus.to_physical_address(address);
-	std::cout << ", " << static_cast<uint32_t>(result) << '\n';
-
 	write_memory(address, std::as_bytes(std::span{ &result, 1 }));
 }
 
 void Cpu::op_andi(const Instruction& instruction) {
 	set_register(instruction.rt(), instruction.imm16() & get_register_data(instruction.rs()));
-
-	std::cout << instruction << " " << register_name(instruction.rt()) << ", ";
-	std::cout << register_name(instruction.rs()) << ", " << instruction.imm16() << '\n';
 }
 
 void Cpu::op_jal(const Instruction& instruction) {
@@ -770,9 +658,6 @@ void Cpu::op_sh(const Instruction& instruction) {
 		return;
 	}
 
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::hex << address << '\n';
-
 	uint16_t result { static_cast<uint16_t>(rt_data) };
 	write_memory(address, std::as_bytes(std::span(&result, 1)));
 }
@@ -782,17 +667,11 @@ void Cpu::op_addu(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 
 	set_register(instruction.rd(), rs_data + rt_data);
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << rs_data << " + " << rt_data << '\n';
 }
 
 void Cpu::op_sltu(const Instruction& instruction) {
 	set_register(instruction.rd(), 
 			  get_register_data(instruction.rs()) < get_register_data(instruction.rt()));
-
-	std::cout << instruction << ' ' << register_name(instruction.rd()) << ", ";
-	std::cout << register_name(instruction.rs()) << ", " << register_name(instruction.rt()) << '\n';
 }
 
 void Cpu::op_lw(const Instruction& instruction) {
@@ -803,17 +682,11 @@ void Cpu::op_lw(const Instruction& instruction) {
 	}
 
 	load_delay_data(instruction.rt(), to_32(read_memory(address, 4)));
-	
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::hex << address << '\n';
 }
 
 void Cpu::op_addi(const Instruction& instruction) {
 	int rs_data { static_cast<int>(get_register_data(instruction.rs())) };
 	int64_t result { rs_data + static_cast<int>(instruction.imm16_se()) };
-
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << std::dec << rs_data << " + " << instruction.imm16() << '\n';
 
 	// TODO: Throw an Integer Overflow exception
 	if (result > std::numeric_limits<uint32_t>::max()) {
@@ -832,17 +705,11 @@ void Cpu::op_bne(const Instruction& instruction) {
 	if (rs_data != rt_data) {
 		branch(offset);
 	}
-
-	std::cout << instruction << ' ';
-	std::cout << rs_data << ", " << rt_data << ", " << m_bus.to_physical_address(m_next_pc) << '\n';
 }
 
 void Cpu::op_mtc0(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	cop0_set_register(instruction.cop0_rd(), rt_data);
-
-	std::cout << instruction << ' ' << rt_data << ", ";
-	std::cout << cop0_register_name(instruction.cop0_rd()) << '\n';
 }
 
 void Cpu::op_or(const Instruction& instruction) {
@@ -850,16 +717,11 @@ void Cpu::op_or(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	
 	set_register(instruction.rd(), rs_data | rt_data);
-
-	std::cout << instruction << " " << register_name(instruction.rd()) << ", ";
-	std::cout << (rs_data | rt_data) << '\n';
 }
 
 void Cpu::op_jump(const Instruction& instruction) {
 	uint32_t addr { instruction.jump_addr() << 2 };
 	m_next_pc = (m_pc & 0xf0000000) | addr;
-
-	std::cout << instruction << " " << m_next_pc << '\n';
 }
 
 void Cpu::op_addiu(const Instruction& instruction) {
@@ -867,16 +729,12 @@ void Cpu::op_addiu(const Instruction& instruction) {
 	uint32_t result { rs_value + instruction.imm16_se() };
 
 	set_register(instruction.rt(), result);
-
-	std::cout << instruction << ' ' << register_name(instruction.rt()) << ", ";
-	std::cout << rs_value << " + " << instruction.imm16_se() << '\n' ;
 }
 
 void Cpu::op_lui(const Instruction& instruction) {
 	uint32_t constant { instruction.imm16() << 16 };
 
 	set_register(instruction.rt(), constant);
-	std::cout << instruction << " " << register_name(instruction.rt()) << ", " << constant << '\n';
 }
 
 void Cpu::op_sw(const Instruction& instruction) {
@@ -893,27 +751,17 @@ void Cpu::op_sw(const Instruction& instruction) {
 		return;
 	}
 	
-
-	std::cout << instruction << " " << register_name(instruction.rt()) << ", ";
-	std::cout << m_bus.to_physical_address(address) << '\n';
-
 	uint32_t result { get_register_data(instruction.rt()) };
 	write_memory(address, std::as_bytes(std::span{ &result, 1 }));
 }
 
 void Cpu::op_ori(const Instruction& instruction) {
 	set_register(instruction.rt(), instruction.imm16() | get_register_data(instruction.rs()));
-
-	std::cout << instruction << " " << register_name(instruction.rt()) << ", ";
-	std::cout << register_name(instruction.rs()) << ", " << instruction.imm16() << '\n';
 }
 
 void Cpu::op_sll(const Instruction& instruction) {
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	set_register(instruction.rd(), rt_data << instruction.sa());
-	
-	std::cout << instruction << " " << register_name(instruction.rd()) << ", ";
-	std::cout << rt_data << ", " << instruction.sa() << '\n';
 }
 
 std::string_view Cpu::register_name(Register reg) const {

@@ -9,14 +9,11 @@
 #include <SDL3/SDL.h>
 
 #include "Gui.h"
+#include "System.h"
 
 int main() {
-
-	Bios bios { "../scph1001.bin" };
-	Ram memory {};
-	Bus bus { bios, memory };
-	Cpu cpu { bus };
-	Gui gui { &cpu, 1280, 720 };
+	auto system { std::make_shared<System>() };
+	Gui gui { system, 1280, 720 };
 	if (gui.init_failed()) {
 		return EXIT_FAILURE;
 	}
@@ -31,7 +28,7 @@ int main() {
 				quit = true;
 		}
 
-		cpu.fetch_decode_execute();
+		system->run();
 
 		gui.render();
 	}

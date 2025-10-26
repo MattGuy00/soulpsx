@@ -95,8 +95,7 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 			switch (branch_opcode) {
 				case 0b00000: return bltz;
 				case 0b00001: return bgez;
-				default:
-					std::cout << "Branch: " << std::bitset<6>{ branch_opcode } << '\n';
+				default: ;
 			}
 		}
 		// Special instruction. So we check secondary opcode
@@ -129,8 +128,6 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b010001: return mthi;
 				case 0b001100: return syscall;
 				default:
-					std::cout << "Special: ";
-					std::cout << std::bitset<6>{ secondary_opcode } << '\n';
 					return unknown;
 			}
 		}
@@ -146,11 +143,9 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 				case 0b010000: return rfe;
 			}
 
-			std::cout << "Cop0 instruction\n";
 			return unknown;
 		}
 		default: 
-			std::cout << std::bitset<6>{ primary_opcode } << '\n';
 			return unknown;
 	}
 }

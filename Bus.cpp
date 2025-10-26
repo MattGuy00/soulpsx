@@ -4,49 +4,135 @@
 #include <cstdlib>
 #include <span>
 
-std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes = 0) {
+std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes) const {
 	uint32_t physical_address { to_physical_address(address) };
 
-	if (physical_address >= bios_memory_begin && physical_address < bios_memory_end) {
-		return bios.read(physical_address - bios_memory_begin, bytes);
-	} else if (physical_address >= ram_begin && physical_address < ram_end) {
-		return ram.read(physical_address - ram_begin, bytes);
-	} else if (physical_address >= io_ports_begin && physical_address < io_ports_end) {
-		return std::span{ io_ports }.subspan(physical_address - io_ports_begin, bytes);
-	} else if (physical_address >= cache_control_begin && physical_address < cache_control_end) {
-		std::cout << "cache control\n";
-	} else if (physical_address >= expansion_region_1_begin && physical_address < expansion_region_1_end) {
-		return std::as_bytes(std::span{ &m_no_expansion, 1 });
-	} else {
-		std::cout << "Read to unknown region (" << physical_address << ")\n";
-		std::exit(1);
+	Region region { get_region(address) };
+	using enum Region;
+	switch (region) {
+		case bios: {
+			return m_bios.read(physical_address - bios_memory_begin, bytes);
+		}
+		case ram: {
+			return m_ram.read(physical_address - ram_begin, bytes);
+		}
+		case io_ports: {
+			return std::span{ m_io_ports }.subspan(physical_address - io_ports_begin, bytes);
+		}
+		case cache_control: {
+			return {};
+		}
+		case expansion_1: {
+			return std::as_bytes(std::span{ &m_no_expansion, 1 });
+		}
+		case expansion_2: {
+			return {};
+		}
+		default: {
+			std::cout << "unknown region\n";
+			std::exit(1);
+		}
 	}
+}
 
-	return std::span<const std::byte>();
+std::span<const std::byte> Bus::read_memory(Region memory_region, uint32_t offset, uint32_t bytes) const {
+	using enum Region;
+	switch (memory_region) {
+		case bios: {
+			return m_bios.read(offset, bytes);
+		}
+		case ram: {
+			return m_ram.read(offset, bytes);
+		}
+		case io_ports: {
+			return std::span{ m_io_ports }.subspan(offset, bytes);
+		}
+		case cache_control: {
+			return {};
+		}
+		case expansion_1: {
+			return std::as_bytes(std::span{ &m_no_expansion, 1 });
+		}
+		case expansion_2: {
+			return {};
+		}
+		default: {
+			std::cout << "unknown region\n";
+			std::exit(1);
+		}
+	}
 }
 
 void Bus::write_memory(uint32_t address, std::span<const std::byte> data) {
 	uint32_t physical_address { to_physical_address(address) };
 
-	if (physical_address >= bios_memory_begin && physical_address < bios_memory_end) {
-		std::cout << "Illegal write to Read Only Memory (Bios)\n";
-	} else if (physical_address >= ram_begin && physical_address < ram_end) {
-		ram.write(physical_address - ram_begin, data);
-	} else if (physical_address >= io_ports_begin && physical_address < io_ports_end) {
-		std::copy(data.begin(), data.end(), io_ports.begin() + address - io_ports_begin);
-	} else if (physical_address >= cache_control_begin && physical_address < cache_control_end) {
-		std::cout << "Ignoring write to cache control\n";
-	} else if (physical_address >= expansion_region_2_begin && physical_address < expansion_region_2_end) { 
-		std::cout << "Ignoring write to expansion region 2\n";
-	} else {
-		std::cout << "Write to unknown region " << "( " << physical_address << ")\n";
-		std::exit(1);
+	Region region { get_region(address) };
+	using enum Region;
+	switch (region) {
+		case bios: {
+			std::cout << "Illegal write to Read Only Memory (Bios)\n";
+			break;
+		}
+		case ram: {
+			m_ram.write(physical_address - ram_begin, data);
+			break;
+		}
+		case io_ports: {
+			std::copy(data.begin(), data.end(), m_io_ports.begin() + address - io_ports_begin);
+			break;
+		}
+		case cache_control: {
+			std::cout << "Ignoring write to cache control\n";
+			break;
+		}
+		case expansion_1: {
+			std::cout << "Ignoring write to expansion region 1\n";
+			break;
+		}
+		case expansion_2: {
+			std::cout << "Ignoring write to expansion region 2\n";
+			break;
+		}
+		default: {
+			std::cout << "Write to unknown region " << "( " << std::hex << physical_address << ")\n";
+			std::exit(1);
+		}
 	}
 }
 
 // Translates the virtual memory address into its physical memory address
-uint32_t Bus::to_physical_address(uint32_t virtual_address) {
+uint32_t Bus::to_physical_address(uint32_t virtual_address) const {
 	uint32_t kseg { virtual_address >> 29 };
 	uint32_t physical_address { virtual_address & region_mask[kseg] };
 	return physical_address;
+}
+
+Region Bus::get_region(uint32_t virtual_address) const {
+	uint32_t physical_address { to_physical_address(virtual_address) };
+
+	if (physical_address >= bios_memory_begin && physical_address < bios_memory_end) {
+		return Region::bios;
+	}
+
+	if (physical_address >= ram_begin && physical_address < ram_end) {
+		return Region::ram;
+	}
+
+	if (physical_address >= io_ports_begin && physical_address < io_ports_end) {
+		return Region::io_ports;
+	}
+
+	if (physical_address >= cache_control_begin && physical_address < cache_control_end) {
+		return Region::cache_control;
+	}
+
+	if (physical_address >= expansion_region_1_begin && physical_address < expansion_region_1_end) {
+		return Region::expansion_1;
+	}
+
+	if (physical_address >= expansion_region_2_begin && physical_address < expansion_region_2_end) {
+		return Region::expansion_2;
+	}
+
+	return Region::unknown;
 }

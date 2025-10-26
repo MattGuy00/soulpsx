@@ -6,14 +6,38 @@
 #include <cstdint>
 #include <span>
 
+enum class Region {
+	bios,
+	ram,
+	io_ports,
+	cache_control,
+	expansion_1,
+	expansion_2,
+	unknown
+};
 
 struct Bus {
-	std::span<const std::byte> read_memory(uint32_t address, uint32_t bytes);
+	std::span<const std::byte> read_memory(uint32_t address, uint32_t bytes = 0) const;
+	std::span<const std::byte> read_memory(Region memory_region, uint32_t offset = 0, uint32_t bytes = 0) const;
 	void write_memory(uint32_t address, std::span<const std::byte> data);
-	uint32_t to_physical_address(uint32_t virtual_address);
 
-	Bios& bios;
-	Ram& ram;
+	uint32_t to_physical_address(uint32_t virtual_address) const;
+	Region get_region(uint32_t virtual_address) const;
+	static std::string_view region_name(Region region) {
+		using enum Region;
+		switch (region) {
+			case bios: return "bios";
+			case ram: return "ram";
+			case io_ports: return "io_ports";
+			case cache_control: return "cache_control";
+			case expansion_1: return "expansion_1";
+			case expansion_2: return "expansion_2";
+			default: return "unknown";
+		}
+	}
+
+	Bios& m_bios;
+	Ram& m_ram;
 
 	static constexpr uint32_t bios_memory_begin { 0x1fc00000 };
 	static constexpr uint32_t bios_size { 512 * 1024 };
@@ -43,7 +67,7 @@ struct Bus {
 
 
 	// Creating it here for now as its likely not used anywhere
-	std::array<std::byte, io_ports_size> io_ports {};
+	std::array<std::byte, io_ports_size> m_io_ports {};
 
 	static constexpr std::array<uint32_t, 8> region_mask {
 		// KUSEG

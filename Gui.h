@@ -4,8 +4,10 @@
 #include <deque>
 #include <string_view>
 
+#include "Bus.h"
 #include "Dependencies/imgui/imgui.h"
 
+class System;
 struct ImGuiIO;
 struct SDL_Window;
 struct SDL_Renderer;
@@ -14,7 +16,7 @@ class Cpu;
 class Gui {
 public:
    Gui(std::string_view title, int width, int height);
-   Gui(Cpu* cpu, int width, int height);
+   Gui(std::shared_ptr<System>, int width, int height);
    ~Gui();
 
    [[nodiscard]] bool init_failed() const { return m_init_failed; }
@@ -33,9 +35,13 @@ private:
    bool m_init_failed { false };
    ImVec4 m_clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-   Cpu* m_cpu {};
+   std::shared_ptr<System> m_system;
+
+   std::vector<Instruction> m_disassembled_instructions {};
+   Region m_disassembled_memory_region { Region::unknown };
 
    std::deque<Instruction> m_executed_instructions;
-   void render_instruction();
+   void disassemble_memory(std::span<const std::byte> memory);
+   void render_instruction(const Instruction& instruction);
    std::string instruction_to_string(std::string_view instruction_name, const std::vector<std::string_view>& values);
 };
