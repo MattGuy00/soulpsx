@@ -16,11 +16,8 @@ public:
 
 	void fetch_decode_execute();
 
-	std::string_view register_name(Register reg) const;
 	uint32_t get_register_data(Register reg) const;
-
 	uint32_t cop0_get_register_data(Cop0_Register reg) const;
-	std::string_view cop0_register_name(Cop0_Register reg) const;
 
 	Instruction get_current_instruction() const { return m_current_instruction; }
 	Region get_current_memory_region() const { return m_current_read_region; }

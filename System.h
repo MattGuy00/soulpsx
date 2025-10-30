@@ -13,12 +13,15 @@ public:
 	const Cpu& get_cpu() const { return m_cpu; }
 	const Bios& get_bios() const { return m_bios; }
 	const Bus& get_bus() const { return m_bus; }
-	void run();
 	Region get_current_memory_region() const { return m_cpu.get_current_memory_region(); }
+
+	void run();
+	void pause(bool pause_state) { m_pause_system = pause_state; };
 private:
     static constexpr std::string bios_file_path { "../scph1001.bin" };
     Bios m_bios { bios_file_path };
     Ram m_memory {};
     Bus m_bus { m_bios, m_memory };
 	Cpu m_cpu { m_bus };
+	bool m_pause_system { false };
 };

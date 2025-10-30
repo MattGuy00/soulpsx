@@ -23,6 +23,7 @@ struct Bus {
 
 	uint32_t to_physical_address(uint32_t virtual_address) const;
 	Region get_region(uint32_t virtual_address) const;
+	uint32_t get_relative_offset(uint32_t virtual_address) const;
 	static std::string_view region_name(Region region) {
 		using enum Region;
 		switch (region) {

@@ -112,7 +112,7 @@ void Gui::render() {
                 }
                 Register reg { static_cast<Register>(i) };
                 uint32_t value { m_system->get_cpu().get_register_data(reg) };
-                ImGui::TextColored({0, 80, 200, 1}, "%s:", m_system->get_cpu().register_name(reg).data());
+                ImGui::TextColored({0, 80, 200, 1}, "%s:", Instruction::register_name(reg).data());
                 ImGui::SameLine( );
                 ImGui::Text("0x%08x", value);
             }
@@ -127,7 +127,7 @@ void Gui::render() {
                 }
                 Cop0_Register reg { static_cast<Cop0_Register>(i) };
                 uint32_t value { m_system->get_cpu().cop0_get_register_data(reg) };
-                ImGui::TextColored({0, 80, 200, 1}, "%s:", m_system->get_cpu().cop0_register_name(reg).data());
+                ImGui::TextColored({0, 80, 200, 1}, "%s:", Instruction::cop0_register_name(reg).data());
                 ImGui::SameLine( );
                 ImGui::Text("0x%08x", value);
             }
@@ -136,40 +136,7 @@ void Gui::render() {
         ImGui::EndTabBar();
         ImGui::End();
 
-        // Only disassemble memory if the memory region has changed since it last happened.
-        if (m_disassembled_memory_region != m_system->get_current_memory_region()) {
-            disassemble_memory(m_system->get_bus().read_memory(m_system->get_current_memory_region()));
-        }
-        ImGui::Begin("Disassembly", 0, ImGuiWindowFlags_NoCollapse);
-        ImGui::Text("Memory Region: %s", Bus::region_name(m_system->get_current_memory_region()).data());
-        ImGui::BeginTable("Disassembly", 3 , ImGuiTableFlags_SizingFixedFit);
-        ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed);
-        ImGui::TableSetupColumn("Instruction", ImGuiTableColumnFlags_WidthFixed);
-        ImGui::TableSetupColumn("Hex", ImGuiTableColumnFlags_WidthFixed);
-        ImGui::TableHeadersRow();
-
-        uint32_t offset { 0 };
-        for (const auto& instruction : m_disassembled_instructions) {
-            ImGui::TableNextRow();
-
-            ImGui::TableNextColumn();
-            ImGui::Text("0x%08x:", offset);
-            offset += 4;
-
-            ImGui::TableNextColumn();
-            render_instruction(instruction);
-
-            ImGui::TableNextColumn();
-            ImGui::Text("%02hhX", instruction.data() >> 24);
-            ImGui::SameLine();
-            ImGui::Text("%02hhX", instruction.data() >> 16);
-            ImGui::SameLine();
-            ImGui::Text("%02hhX", instruction.data() >> 8);
-            ImGui::SameLine();
-            ImGui::Text("%02hhX", instruction.data());
-        }
-        ImGui::EndTable();
-        ImGui::End();
+        render_disassembler();
     }
 
     ImGui::Render();
@@ -184,211 +151,87 @@ void Gui::render() {
 void Gui::disassemble_memory(std::span<const std::byte> memory) {
     m_disassembled_instructions.clear();
     for (uint32_t offset = 0; offset + 4 <= memory.size(); offset += 4) {
-        Instruction instruction { memory.subspan(offset, 4) };
-        m_disassembled_instructions.push_back(instruction);
+        Instruction instruction { memory.subspan(offset, 4), m_system->get_cpu().get_pc() };
+        m_disassembled_instructions.emplace_back(instruction);
     }
 
     m_disassembled_memory_region = m_system->get_current_memory_region();
 }
 
-void Gui::render_instruction(const Instruction& instruction) {
-    std::string output {};
-    switch (instruction.opcode()) {
-        case Instruction::Opcode::add:
-        case Instruction::Opcode::addu:
-        case Instruction::Opcode::subu:
-        case Instruction::Opcode::slt:
-        case Instruction::Opcode::sltu:
-        case Instruction::Opcode::and_b:
-        case Instruction::Opcode::or_b:
-        case Instruction::Opcode::Xor:
-        case Instruction::Opcode::nor: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rd()),
-                m_system->get_cpu().register_name(instruction.rs()),
-                m_system->get_cpu().register_name(instruction.rt()),
-            });
-            break;
-        }
-        case Instruction::Opcode::sllv:
-        case Instruction::Opcode::srlv:
-        case Instruction::Opcode::srav: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rd()),
-                m_system->get_cpu().register_name(instruction.rt()),
-                m_system->get_cpu().register_name(instruction.rs()),
-            });
-            break;
-        }
-        case Instruction::Opcode::addi:
-        case Instruction::Opcode::slti:
-        case Instruction::Opcode::andi:
-        case Instruction::Opcode::ori: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << instruction.imm16_se();
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rt()),
-                m_system->get_cpu().register_name(instruction.rs()),
-                value_as_hex.str()
-            });
-            break;
-        }
-        case Instruction::Opcode::addiu:
-        case Instruction::Opcode::sltiu: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << instruction.imm16_se();
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rt()),
-                m_system->get_cpu().register_name(instruction.rs()),
-                value_as_hex.str()
-            });
-            break;
-        }
-        case Instruction::Opcode::sll:
-        case Instruction::Opcode::srl:
-        case Instruction::Opcode::sra: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << instruction.imm16_se();
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rd()),
-                m_system->get_cpu().register_name(instruction.rt()),
-                value_as_hex.str()
-            });
-            break;
-        }
-        case Instruction::Opcode::lui: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << instruction.imm16_se();
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rt()),
-                value_as_hex.str()
-            });
-            break;
-        }
-        case Instruction::Opcode::multu:
-        case Instruction::Opcode::div:
-        case Instruction::Opcode::divu: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rs()),
-                m_system->get_cpu().register_name(instruction.rt())
-            });
-            break;
-        }
-        case Instruction::Opcode::mfhi:
-        case Instruction::Opcode::mflo: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rd()),
-            });
-            break;
-        }
-        case Instruction::Opcode::mthi:
-        case Instruction::Opcode::mtlo: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rs()),
-            });
-            break;
-        }
-        case Instruction::Opcode::jump:
-        case Instruction::Opcode::jal: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << m_system->get_cpu().get_next_pc();
-            output = instruction_to_string(instruction.type_string(), {
-                value_as_hex.str()
-            });
-            break;
-        }
-        case Instruction::Opcode::jr: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rs()),
-            });
-            break;
-        }
-        case Instruction::Opcode::jalr: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rd()),
-                m_system->get_cpu().register_name(instruction.rs()),
-            });
-            break;
-        }
-        case Instruction::Opcode::beq:
-        case Instruction::Opcode::bne: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << m_system->get_cpu().get_next_pc();
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rs()),
-                m_system->get_cpu().register_name(instruction.rt()),
-                value_as_hex.str()
-            });
-            break;
-        }
-        case Instruction::Opcode::bltz:
-        case Instruction::Opcode::bgez:
-        case Instruction::Opcode::bgtz:
-        case Instruction::Opcode::blez: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << m_system->get_cpu().get_next_pc();
-            output = instruction_to_string(instruction.type_string(), {
-            m_system->get_cpu().register_name(instruction.rs()),
-                value_as_hex.str()
-            });
-            break;
-        }
-        case Instruction::Opcode::syscall: {
-            output = instruction_to_string(instruction.type_string(), {
-            });
-            break;
-        }
-        case Instruction::Opcode::lb:
-        case Instruction::Opcode::lbu:
-        case Instruction::Opcode::lh:
-        case Instruction::Opcode::lhu:
-        case Instruction::Opcode::lw:
-        case Instruction::Opcode::sb:
-        case Instruction::Opcode::sh:
-        case Instruction::Opcode::sw:
-        case Instruction::Opcode::lwr: {
-            std::stringstream value_as_hex;
-            value_as_hex << "0x" << std::hex << instruction.imm16_se();
-            std::string load_address { value_as_hex.str() };
-            load_address += "(";
-            load_address += m_system->get_cpu().register_name(instruction.rs());
-            load_address += ")";
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rt()),
-                load_address
-            });
-            break;
-        }
-        case Instruction::Opcode::mfc0:
-        case Instruction::Opcode::mtc0: {
-            output = instruction_to_string(instruction.type_string(), {
-                m_system->get_cpu().register_name(instruction.rt()),
-                m_system->get_cpu().register_name(instruction.rd())
-            });
-            break;
-        }
-        case Instruction::Opcode::rfe:
-        case Instruction::Opcode::unknown: {
-            output = instruction_to_string(instruction.type_string(), {});
-            break;
-        }
+void Gui::render_disassembler() {
+    ImGui::Begin("Disassembly", 0, ImGuiWindowFlags_NoCollapse);
+    ImGui::Text("Memory Region: %s", Bus::region_name(m_system->get_current_memory_region()).data());
+
+    // Only disassemble memory if the memory region has changed since it last happened.
+    if (m_disassembled_memory_region != m_system->get_current_memory_region()) {
+        disassemble_memory(m_system->get_bus().read_memory(m_system->get_current_memory_region()));
     }
 
-    ImGui::Text("%s", output.data());
+    if (ImGui::BeginTable("Disassembly", 3 , ImGuiTableFlags_SizingFixedFit)) {
+        ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("Instruction", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("Hex", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableHeadersRow();
 
-}
+        uint32_t pc_relative_offset { m_system->get_bus().get_relative_offset(m_system->get_cpu().get_pc()) };
+        int64_t start_offset { pc_relative_offset - 4 * 20 };
+        for (uint32_t offset = (start_offset < 0 ? 0 : start_offset); offset < pc_relative_offset; offset += 4) {
+            ImGui::TableNextRow();
 
-// Helper function that takes an instruction name and the registers to modify, or immediate values as strings
-// and prepares them for printing.
-std::string Gui::instruction_to_string(std::string_view instruction_name, const std::vector<std::string_view>& values) {
-    std::string output { instruction_name };
-    output += " ";
-    for (int i = 0; i < values.size(); i++) {
-        output += values[i];
-        if (i != values.size() - 1) {
-            output += ", ";
+            ImGui::TableNextColumn();
+            ImGui::TextColored({0, 80, 200, 1}, "0x%08x:", offset);
+
+            ImGui::TableNextColumn();
+
+            ImGui::Text(m_disassembled_instructions[offset / 4].as_string().data());
+
+            // Render instruction as hex
+            ImGui::TableNextColumn();
+            ImGui::Text(m_disassembled_instructions[offset / 4].as_hex().data());
         }
-    }
 
-    return output;
+        for (uint32_t offset = pc_relative_offset; offset < pc_relative_offset + 4 * 20; offset += 4) {
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::TextColored({0, 80, 200, 1}, "0x%08x:", offset);
+
+            ImGui::TableNextColumn();
+            ImGui::Text(m_disassembled_instructions[offset / 4].as_string().data());
+
+            // Jump to and highlight the most recently executed instruction
+            if (offset == m_system->get_bus().get_relative_offset(m_system->get_cpu().get_pc())) {
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImU32(0xAA50bc1b));
+                ImGui::SetScrollHereY();
+            }
+            // Render instruction as hex
+            ImGui::TableNextColumn();
+            ImGui::Text(m_disassembled_instructions[offset / 4].as_hex().data());
+        }
+
+        // uint32_t offset { 0 };
+        // for (const auto& instruction : m_disassembled_instructions) {
+        //     ImGui::TableNextRow();
+        //
+        //     ImGui::TableNextColumn();
+        //     ImGui::TextColored({0, 80, 200, 1}, "0x%08x:", offset);
+        //     offset += 4;
+        //
+        //     ImGui::TableNextColumn();
+        //     ImGui::Text(instruction.as_string().data());
+        //
+        //     // Jump to and highlight the most recently executed instruction
+        //     if (offset == m_system->get_bus().get_relative_offset(m_system->get_cpu().get_pc())) {
+        //         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImU32(0xAA50bc1b));
+        //         ImGui::SetScrollHereY();
+        //     }
+        //     // Render instruction as hex
+        //     ImGui::TableNextColumn();
+        //     ImGui::Text(instruction.as_hex().data());
+        // }
+        ImGui::EndTable();
+    }
+    ImGui::End();
 }
+
+

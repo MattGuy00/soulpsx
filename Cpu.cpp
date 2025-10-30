@@ -15,7 +15,7 @@ void Cpu::fetch_decode_execute() {
 		return;
 	}
 	m_current_read_region = m_bus.get_region(m_pc);
-	m_current_instruction = Instruction(read_memory(m_pc, 4));
+	m_current_instruction = Instruction(read_memory(m_pc, 4), m_pc);
 
 	m_current_pc = m_pc;
 	m_pc = m_next_pc;
@@ -764,62 +764,6 @@ void Cpu::op_sll(const Instruction& instruction) {
 	set_register(instruction.rd(), rt_data << instruction.sa());
 }
 
-std::string_view Cpu::register_name(Register reg) const {
-	using enum Register;
-	switch (reg) {
-		case zero: return "r0";
-		case at: return "at";
-		case v0: return "v0";
-		case v1: return "v1";
-		case a0: return "a0";
-		case a1: return "a1";
-		case a2: return "a2";
-		case a3: return "a3";
-		case t0: return "t0";
-		case t1: return "t1";
-		case t2: return "t2";
-		case t3: return "t3";
-		case t4: return "t4";
-		case t5: return "t5";
-		case t6: return "t6";
-		case t7: return "t7";
-		case t8: return "t8";
-		case t9: return "t9";
-		case s0: return "s0";
-		case s1: return "s1";
-		case s2: return "s2";
-		case s3: return "s3";
-		case s4: return "s4";
-		case s5: return "s5";
-		case s6: return "s6";
-		case s7: return "s7";
-		case k0: return "k0";
-		case k1: return "k1";
-		case gp: return "gp";
-		case sp: return "sp";
-		case fp: return "fp";
-		case ra: return "ra";
-		default: return "unknown";
-	}
-}
-
-std::string_view Cpu::cop0_register_name(Cop0_Register reg) const {
-	using enum Cop0_Register;
-	switch (reg) {
-		case bpc: return "bpc";
-		case bda: return "bda";
-		case jumpdest: return "jumpdest";
-		case dcic: return "dcic";
-		case badvaddr: return "badvaddr";
-		case bdam: return "bdam";
-		case bpcm: return "bpcm";
-		case sr: return "sr";
-		case cause: return "cause";
-		case epc: return "epc";
-		case prid: return "prid";
-		default: return "unused";
-	}
-}
 
 std::string_view Cpu::exception_name(Exception exception) const {
 	using enum Exception;

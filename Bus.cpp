@@ -136,3 +136,34 @@ Region Bus::get_region(uint32_t virtual_address) const {
 
 	return Region::unknown;
 }
+
+uint32_t Bus::get_relative_offset(uint32_t virtual_address) const {
+	uint32_t physical_address { to_physical_address(virtual_address) };
+	Region region { get_region(virtual_address) };
+	using enum Region;
+	switch (region) {
+		case bios: {
+			return physical_address - bios_memory_begin;
+		}
+		case ram: {
+			return physical_address - ram_begin;
+		}
+		case io_ports: {
+			return physical_address - io_ports_begin;
+		}
+		case cache_control: {
+			return physical_address - cache_control_begin;
+		}
+		case expansion_1: {
+			return physical_address - expansion_region_1_begin;
+		}
+		case expansion_2: {
+			return physical_address - expansion_region_2_begin;
+		}
+		case unknown: {
+			return virtual_address;
+		}
+
+	}
+	return virtual_address;
+}

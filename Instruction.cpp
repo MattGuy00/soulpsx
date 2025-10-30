@@ -1,9 +1,21 @@
 #include "Instruction.h"
 #include <bitset>
 #include <cstdint>
+#include <iomanip>
+#include <sstream>
 #include <unistd.h>
 
-std::string_view Instruction::type_string() const {
+Instruction::Instruction(std::span<const std::byte> data, uint32_t pc) {
+	memcpy(&m_data, data.data(), sizeof(int));
+	m_opcode = determine_opcode(m_data);
+	to_string(pc);
+}
+
+Instruction::Instruction() {
+	m_opcode = Opcode::unknown;
+}
+
+std::string_view Instruction::opcode_as_string() const {
 	using enum Opcode;
 	switch (m_opcode) {
 		case andi: return "andi";
@@ -147,5 +159,217 @@ Instruction::Opcode Instruction::determine_opcode(uint32_t data) {
 		}
 		default: 
 			return unknown;
+	}
+}
+
+
+std::string Instruction::as_hex() const {
+	std::stringstream ss;
+	ss << std::hex << std::uppercase << std::setfill('0') << std::setw(2);
+	ss << (m_data >> 24 & 0xff) << " ";
+	ss << std::setfill('0') << std::setw(2);
+	ss << (m_data >> 16 & 0xff) << " ";
+	ss << std::setfill('0') << std::setw(2);
+	ss << (m_data >> 8 & 0xff) << " ";
+	ss << std::setfill('0') << std::setw(2);
+	ss << (m_data & 0xff);
+	return ss.str();
+}
+
+void Instruction::to_string(uint32_t pc) {
+    switch (opcode()) {
+        case Instruction::Opcode::add:
+        case Instruction::Opcode::addu:
+        case Instruction::Opcode::subu:
+        case Instruction::Opcode::slt:
+        case Instruction::Opcode::sltu:
+        case Instruction::Opcode::and_b:
+        case Instruction::Opcode::or_b:
+        case Instruction::Opcode::Xor:
+        case Instruction::Opcode::nor: {
+            instruction_to_string({
+	            register_name(rd()),
+                register_name(rs()),
+                register_name(rt()),
+            });
+            break;
+        }
+        case Instruction::Opcode::sllv:
+        case Instruction::Opcode::srlv:
+        case Instruction::Opcode::srav: {
+            instruction_to_string( {
+                register_name(rd()),
+                register_name(rt()),
+                register_name(rs()),
+            });
+            break;
+        }
+        case Opcode::addi:
+        case Instruction::Opcode::slti:
+        case Instruction::Opcode::andi:
+        case Instruction::Opcode::ori: {
+            std::stringstream value_as_hex;
+            value_as_hex << "0x" << std::hex << imm16_se();
+            instruction_to_string( {
+                register_name(rt()),
+                register_name(rs()),
+                value_as_hex.str()
+            });
+            break;
+        }
+        case Instruction::Opcode::addiu:
+        case Instruction::Opcode::sltiu: {
+            std::stringstream value_as_hex;
+            value_as_hex << "0x" << std::hex << imm16_se();
+            instruction_to_string( {
+                register_name(rt()),
+                register_name(rs()),
+                value_as_hex.str()
+            });
+            break;
+        }
+        case Instruction::Opcode::sll:
+        case Instruction::Opcode::srl:
+        case Instruction::Opcode::sra: {
+            std::stringstream value_as_hex;
+            value_as_hex << "0x" << std::hex << imm16_se();
+            instruction_to_string( {
+                register_name(rd()),
+                register_name(rt()),
+                value_as_hex.str()
+            });
+            break;
+        }
+        case Instruction::Opcode::lui: {
+            std::stringstream value_as_hex;
+            value_as_hex << "0x" << std::hex << imm16_se();
+            instruction_to_string( {
+                register_name(rt()),
+                value_as_hex.str()
+            });
+            break;
+        }
+        case Instruction::Opcode::multu:
+        case Instruction::Opcode::div:
+        case Instruction::Opcode::divu: {
+            instruction_to_string( {
+                register_name(rs()),
+                register_name(rt())
+            });
+            break;
+        }
+        case Instruction::Opcode::mfhi:
+        case Instruction::Opcode::mflo: {
+            instruction_to_string( {
+                register_name(rd()),
+            });
+            break;
+        }
+        case Instruction::Opcode::mthi:
+        case Instruction::Opcode::mtlo: {
+            instruction_to_string( {
+                register_name(rs()),
+            });
+            break;
+        }
+        case Instruction::Opcode::jump:
+        case Instruction::Opcode::jal: {
+            std::stringstream value_as_hex;
+        	uint32_t addr { (pc & 0xf0000000) | jump_addr() << 2 };
+        	value_as_hex << "0x" << std::hex << addr;
+            instruction_to_string( {
+                value_as_hex.str()
+            });
+            break;
+        }
+        case Instruction::Opcode::jr: {
+            instruction_to_string( {
+                register_name(rs()),
+            });
+            break;
+        }
+        case Instruction::Opcode::jalr: {
+            instruction_to_string( {
+                register_name(rd()),
+                register_name(rs()),
+            });
+            break;
+        }
+        case Instruction::Opcode::beq:
+        case Instruction::Opcode::bne: {
+            std::stringstream value_as_hex;
+        	uint32_t addr { (pc & 0xf0000000) | jump_addr() << 2 };
+            value_as_hex << "0x" << std::hex << addr;
+            instruction_to_string( {
+                register_name(rs()),
+                register_name(rt()),
+                value_as_hex.str()
+            });
+            break;
+        }
+        case Instruction::Opcode::bltz:
+        case Instruction::Opcode::bgez:
+        case Instruction::Opcode::bgtz:
+        case Instruction::Opcode::blez: {
+            std::stringstream value_as_hex;
+        	uint32_t addr { (pc & 0xf0000000) | jump_addr() << 2 };
+        	value_as_hex << "0x" << std::hex << addr;
+            instruction_to_string( {
+            register_name(rs()),
+                value_as_hex.str()
+            });
+            break;
+        }
+        case Instruction::Opcode::syscall: {
+            instruction_to_string( {});
+            break;
+        }
+        case Instruction::Opcode::lb:
+        case Instruction::Opcode::lbu:
+        case Instruction::Opcode::lh:
+        case Instruction::Opcode::lhu:
+        case Instruction::Opcode::lw:
+        case Instruction::Opcode::sb:
+        case Instruction::Opcode::sh:
+        case Instruction::Opcode::sw:
+        case Instruction::Opcode::lwr: {
+            std::stringstream value_as_hex;
+            value_as_hex << "0x" << std::hex << imm16_se();
+            std::string load_address { value_as_hex.str() };
+            load_address += "(";
+            load_address += register_name(rs());
+            load_address += ")";
+            instruction_to_string( {
+                register_name(rt()),
+                load_address
+            });
+            break;
+        }
+        case Instruction::Opcode::mfc0:
+        case Instruction::Opcode::mtc0: {
+            instruction_to_string( {
+                register_name(rt()),
+                register_name(rd())
+            });
+            break;
+        }
+        case Instruction::Opcode::rfe:
+        case Instruction::Opcode::unknown: {
+            instruction_to_string( {});
+            break;
+        }
+    }
+}
+
+// Helper function that takes an instruction name and the registers to modify, or immediate values as strings
+// and prepares them for printing.
+void Instruction::instruction_to_string(const std::vector<std::string_view>& values) {
+	m_str_representation = opcode_as_string().data();
+	m_str_representation += " ";
+	for (int i = 0; i < values.size(); i++) {
+		m_str_representation += values[i];
+		if (i != values.size() - 1) {
+			m_str_representation += ", ";
+		}
 	}
 }

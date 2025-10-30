@@ -42,6 +42,7 @@ private:
 
    std::deque<Instruction> m_executed_instructions;
    void disassemble_memory(std::span<const std::byte> memory);
-   void render_instruction(const Instruction& instruction);
-   std::string instruction_to_string(std::string_view instruction_name, const std::vector<std::string_view>& values);
+   void render_disassembler();
+   std::string instruction_as_string(const Instruction& instruction) const;
+   std::string instruction_to_string(std::string_view instruction_name, const std::vector<std::string_view>& values) const;
 };

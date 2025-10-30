@@ -142,14 +142,8 @@ public:
 		unknown,
 	};
 
-	explicit Instruction(std::span<const std::byte> data) {
-		memcpy(&m_data, data.data(), sizeof(int));
-		m_opcode = determine_opcode(m_data);
-	}
-
-	explicit Instruction() {
-		m_opcode = Opcode::unknown;
-	}
+	explicit Instruction(std::span<const std::byte> data, uint32_t pc);
+	explicit Instruction();
 
 	explicit Instruction(uint32_t data) : m_data { data }, m_opcode { determine_opcode(data) } {}
 	
@@ -174,12 +168,74 @@ public:
 
 	// Returns a type based on the 5 bit identifier
 	Opcode opcode() const { return m_opcode; }
-	std::string_view type_string() const;
+	std::string_view opcode_as_string() const;
 
 	uint32_t data() const { return m_data; }
-	
+	std::string as_hex() const;
+
+	std::string_view as_string() const { return m_str_representation; }
+	void to_string(uint32_t pc);
+
+	void instruction_to_string(const std::vector<std::string_view> &values);
+	static std::string_view cop0_register_name(Cop0_Register reg) {
+		using enum Cop0_Register;
+		switch (reg) {
+			case bpc: return "bpc";
+			case bda: return "bda";
+			case jumpdest: return "jumpdest";
+			case dcic: return "dcic";
+			case badvaddr: return "badvaddr";
+			case bdam: return "bdam";
+			case bpcm: return "bpcm";
+			case sr: return "sr";
+			case cause: return "cause";
+			case epc: return "epc";
+			case prid: return "prid";
+			default: return "unused";
+		}
+	}
+
+	static std::string_view register_name(Register reg) {
+		using enum Register;
+		switch (reg) {
+			case zero: return "r0";
+			case at: return "at";
+			case v0: return "v0";
+			case v1: return "v1";
+			case a0: return "a0";
+			case a1: return "a1";
+			case a2: return "a2";
+			case a3: return "a3";
+			case t0: return "t0";
+			case t1: return "t1";
+			case t2: return "t2";
+			case t3: return "t3";
+			case t4: return "t4";
+			case t5: return "t5";
+			case t6: return "t6";
+			case t7: return "t7";
+			case t8: return "t8";
+			case t9: return "t9";
+			case s0: return "s0";
+			case s1: return "s1";
+			case s2: return "s2";
+			case s3: return "s3";
+			case s4: return "s4";
+			case s5: return "s5";
+			case s6: return "s6";
+			case s7: return "s7";
+			case k0: return "k0";
+			case k1: return "k1";
+			case gp: return "gp";
+			case sp: return "sp";
+			case fp: return "fp";
+			case ra: return "ra";
+			default: return "unknown";
+		}
+	}
+
 	friend std::ostream& operator<<(std::ostream& out, const Instruction& instruction) {
-		out << instruction.type_string();	
+		out << instruction.opcode_as_string();
 		return out;
 	}
 
@@ -187,6 +243,7 @@ public:
 private:
 	uint32_t m_data {};
 	Opcode m_opcode {};
+	std::string m_str_representation {};
 
 	Instruction::Opcode determine_opcode(uint32_t data);
 };
