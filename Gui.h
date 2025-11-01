@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "Bus.h"
+#include "../../../../Library/Frameworks/SDL3.xcframework/macos-arm64_x86_64/SDL3.framework/Versions/A/Headers/SDL_video.h"
 #include "Dependencies/imgui/imgui.h"
 
 class System;
@@ -21,13 +22,12 @@ public:
 
    [[nodiscard]] bool init_failed() const { return m_init_failed; }
    [[nodiscard]] SDL_Window* get_window() const { return m_window; }
-   [[nodiscard]] SDL_Renderer* get_renderer() const { return m_renderer; }
    [[nodiscard]] float get_scale() const { return m_scale; }
 
    void render();
 private:
    SDL_Window* m_window {};
-   SDL_Renderer* m_renderer {};
+   SDL_GLContext m_gl_context {};
    std::string_view m_title {};
    int m_width {};
    int m_height {};
@@ -39,6 +39,8 @@ private:
 
    std::vector<Instruction> m_disassembled_instructions {};
    Region m_disassembled_memory_region { Region::unknown };
+   uint32_t last_pc {};
+   ImVec4 addr_colour = ImVec4{0, 80, 200, 1};
 
    std::deque<Instruction> m_executed_instructions;
    void disassemble_memory(std::span<const std::byte> memory);

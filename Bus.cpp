@@ -7,6 +7,16 @@
 std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes) const {
 	uint32_t physical_address { to_physical_address(address) };
 
+	if (physical_address == 0x1f8010f0) {
+		std::cout << "GPU send / recieve" << '\n';
+		std::exit(0);
+	}
+
+	if (physical_address == 0x1f801814) {
+		std::cout << "GPU send / recieve" << '\n';
+		std::exit(0);
+	}
+
 	Region region { get_region(address) };
 	using enum Region;
 	switch (region) {
@@ -17,6 +27,7 @@ std::span<const std::byte> Bus::read_memory(uint32_t address, uint32_t bytes) co
 			return m_ram.read(physical_address - ram_begin, bytes);
 		}
 		case io_ports: {
+			std::cout << "I/O ports: " << std::hex << physical_address << '\n';
 			return std::span{ m_io_ports }.subspan(physical_address - io_ports_begin, bytes);
 		}
 		case cache_control: {
@@ -78,7 +89,7 @@ void Bus::write_memory(uint32_t address, std::span<const std::byte> data) {
 			break;
 		}
 		case io_ports: {
-			std::copy(data.begin(), data.end(), m_io_ports.begin() + address - io_ports_begin);
+			//std::ranges::copy(data, m_io_ports.begin() + (address - io_ports_begin));
 			break;
 		}
 		case cache_control: {
@@ -101,7 +112,7 @@ void Bus::write_memory(uint32_t address, std::span<const std::byte> data) {
 }
 
 // Translates the virtual memory address into its physical memory address
-uint32_t Bus::to_physical_address(uint32_t virtual_address) const {
+uint32_t Bus::to_physical_address(uint32_t virtual_address) {
 	uint32_t kseg { virtual_address >> 29 };
 	uint32_t physical_address { virtual_address & region_mask[kseg] };
 	return physical_address;
@@ -137,6 +148,35 @@ Region Bus::get_region(uint32_t virtual_address) const {
 	return Region::unknown;
 }
 
+uint32_t Bus::get_region_start(Region region) {
+	using enum Region;
+	switch (region) {
+		case bios: return bios_memory_begin;
+		case ram: return ram_begin;
+		case io_ports: return io_ports_begin;
+		case cache_control: return cache_control_begin;
+		case expansion_1: return expansion_region_1_begin;
+		case expansion_2: return expansion_region_2_begin;
+		case unknown: return 0;
+	}
+
+	return 0;
+}
+
+uint32_t Bus::get_region_end(Region region) {
+	using enum Region;
+	switch (region) {
+		case bios: return bios_memory_end;
+		case ram: return ram_end;
+		case io_ports: return io_ports_end;
+		case cache_control: return cache_control_end;
+		case expansion_1: return expansion_region_1_end;
+		case expansion_2: return expansion_region_2_end;
+		case unknown: return 0;
+	}
+	return 0;
+}
+
 uint32_t Bus::get_relative_offset(uint32_t virtual_address) const {
 	uint32_t physical_address { to_physical_address(virtual_address) };
 	Region region { get_region(virtual_address) };
@@ -166,4 +206,17 @@ uint32_t Bus::get_relative_offset(uint32_t virtual_address) const {
 
 	}
 	return virtual_address;
+}
+
+std::string_view Bus::region_name(Region region) {
+	using enum Region;
+	switch (region) {
+		case bios: return "bios";
+		case ram: return "ram";
+		case io_ports: return "io_ports";
+		case cache_control: return "cache_control";
+		case expansion_1: return "expansion_1";
+		case expansion_2: return "expansion_2";
+		default: return "unknown";
+	}
 }

@@ -32,8 +32,9 @@ add_executable(soulpsx
 
 	Dependencies/imgui/imgui_impl_sdl3.cpp
 	Dependencies/imgui/imgui_impl_sdl3.h
-	Dependencies/imgui/imgui_impl_sdlrenderer3.cpp
-	Dependencies/imgui/imgui_impl_sdlrenderer3.h
+	Dependencies/imgui/imgui_impl_opengl3.cpp
+	Dependencies/imgui/imgui_impl_opengl3.h
+	Dependencies/imgui/imgui_impl_opengl3_loader.h
 )
 
 target_link_libraries(soulpsx SDL3::SDL3)

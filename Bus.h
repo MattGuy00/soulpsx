@@ -21,21 +21,12 @@ struct Bus {
 	std::span<const std::byte> read_memory(Region memory_region, uint32_t offset = 0, uint32_t bytes = 0) const;
 	void write_memory(uint32_t address, std::span<const std::byte> data);
 
-	uint32_t to_physical_address(uint32_t virtual_address) const;
+	static uint32_t to_physical_address(uint32_t virtual_address);
 	Region get_region(uint32_t virtual_address) const;
+	static uint32_t get_region_start(Region region);
+	static uint32_t get_region_end(Region region) ;
 	uint32_t get_relative_offset(uint32_t virtual_address) const;
-	static std::string_view region_name(Region region) {
-		using enum Region;
-		switch (region) {
-			case bios: return "bios";
-			case ram: return "ram";
-			case io_ports: return "io_ports";
-			case cache_control: return "cache_control";
-			case expansion_1: return "expansion_1";
-			case expansion_2: return "expansion_2";
-			default: return "unknown";
-		}
-	}
+	static std::string_view region_name(Region region);
 
 	Bios& m_bios;
 	Ram& m_ram;

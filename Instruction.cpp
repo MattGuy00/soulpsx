@@ -5,6 +5,8 @@
 #include <sstream>
 #include <unistd.h>
 
+#include "Bus.h"
+
 Instruction::Instruction(std::span<const std::byte> data, uint32_t pc) {
 	memcpy(&m_data, data.data(), sizeof(int));
 	m_opcode = determine_opcode(m_data);
@@ -276,6 +278,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::jal: {
             std::stringstream value_as_hex;
         	uint32_t addr { (pc & 0xf0000000) | jump_addr() << 2 };
+        	Bus::to_physical_address(addr);
         	value_as_hex << "0x" << std::hex << addr;
             instruction_to_string( {
                 value_as_hex.str()
@@ -298,7 +301,8 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::beq:
         case Instruction::Opcode::bne: {
             std::stringstream value_as_hex;
-        	uint32_t addr { (pc & 0xf0000000) | jump_addr() << 2 };
+        	uint32_t offset { imm16_se() << 2 };
+        	uint32_t addr { pc + offset +  4 };
             value_as_hex << "0x" << std::hex << addr;
             instruction_to_string( {
                 register_name(rs()),
@@ -312,7 +316,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::bgtz:
         case Instruction::Opcode::blez: {
             std::stringstream value_as_hex;
-        	uint32_t addr { (pc & 0xf0000000) | jump_addr() << 2 };
+        	uint32_t addr { pc + (imm16_se() << 2) };
         	value_as_hex << "0x" << std::hex << addr;
             instruction_to_string( {
             register_name(rs()),
@@ -348,7 +352,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::mfc0:
         case Instruction::Opcode::mtc0: {
             instruction_to_string( {
-                register_name(rt()),
+                cop0_register_name((Cop0_Register)rt()),
                 register_name(rd())
             });
             break;

@@ -10,14 +10,15 @@
 #include <span>
 
 void Cpu::fetch_decode_execute() {
-	if (m_pc % 4 != 0) {
+	m_current_pc = m_pc;
+	if (m_current_pc % 4 != 0) {
 		exception(Exception::load_address_error);
 		return;
 	}
+
 	m_current_read_region = m_bus.get_region(m_pc);
 	m_current_instruction = Instruction(read_memory(m_pc, 4), m_pc);
 
-	m_current_pc = m_pc;
 	m_pc = m_next_pc;
 	m_next_pc += 4;
 
@@ -277,6 +278,11 @@ std::span<const std::byte> Cpu::read_memory(uint32_t address, uint32_t bytes) {
 }
 
 void Cpu::write_memory(uint32_t address, std::span<const std::byte> data) {
+	// Cache is isolated
+	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
+		std::cout << "cache isolated\n";
+		return;
+	}
 	m_bus.write_memory(address, data);
 }
 
@@ -369,11 +375,11 @@ void Cpu::op_xor(const Instruction& instruction) {
 void Cpu::op_multu(const Instruction& instruction) {
 	uint64_t rs_data { get_register_data(instruction.rs()) };
 	uint64_t rt_data { get_register_data(instruction.rt()) };
-	uint64_t result { rs_data * rt_data };
+	auto result { rs_data * rt_data };
 
 	// Store first 32 bits in lo and the rest in hi
-	m_lo = result;
-	m_hi = result >> 32;
+	m_lo = static_cast<uint32_t>(result);
+	m_hi = static_cast<uint32_t>(result >> 32);
 }
 
 void Cpu::op_srlv(const Instruction& instruction) {
@@ -398,7 +404,7 @@ void Cpu::op_nor(const Instruction& instruction) {
 }
 
 void Cpu::op_lh(const Instruction& instruction) {
-	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
+	uint32_t address { get_register_data(instruction.rs()) + instruction.imm16_se() };
 	if (address % 2 != 0) {
 		exception(Exception::load_address_error);
 		return;
@@ -427,13 +433,17 @@ void Cpu::op_lhu(const Instruction& instruction) {
 void Cpu::op_rfe(const Instruction& instruction) {
 	uint32_t sr { cop0_get_register_data(Cop0_Register::sr) };
 
-	// Get previous and old status bits
-	uint32_t status_bits { (sr >> 2) & 0b1111 };
+	// // Get previous and old status bits
+	// uint32_t status_bits { (sr >> 2) & 0b1111 };
+	//
+	// // Shave off the old status bits and add the correct bits
+	// sr >>= 4;
+	// sr <<= 4;
+	// sr |= status_bits;
 
-	// Shave off the old status bits and add the correct bits
-	sr >>= 4;
-	sr <<= 4;
-	sr |= status_bits;
+	auto mode { sr & 0x3f };
+	sr &= !0x3f;
+	sr |= mode >> 2;
 
 	cop0_set_register(Cop0_Register::sr, sr);
 }
@@ -553,7 +563,7 @@ void Cpu::op_jalr(const Instruction& instruction) {
 
 void Cpu::op_lbu(const Instruction& instruction) {
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
-	
+
 	load_delay_data(instruction.rt(), to_8(read_memory(address, 1)));
 }
 
@@ -573,6 +583,7 @@ void Cpu::op_bgtz(const Instruction& instruction) {
 	if (rs_data > 0) {
 		branch(offset);
 	}
+
 }
 
 void Cpu::op_add(const Instruction& instruction) {
@@ -622,12 +633,6 @@ void Cpu::op_jr(const Instruction& instruction) {
 }
 
 void Cpu::op_sb(const Instruction& instruction) {
-	// Cache is isolated
-	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
-		std::cout << "cache isolated\n";
-		return;
-	}
-
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
 	uint8_t result { static_cast<uint8_t>(get_register_data(instruction.rt())) };
 
@@ -644,12 +649,6 @@ void Cpu::op_jal(const Instruction& instruction) {
 }
 
 void Cpu::op_sh(const Instruction& instruction) {
-	// Cache is isolated
-	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
-		std::cout << "cache isolated\n";
-		return;
-	}
-
 	uint32_t rt_data { get_register_data(instruction.rt()) };
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
 
@@ -688,13 +687,12 @@ void Cpu::op_addi(const Instruction& instruction) {
 	int rs_data { static_cast<int>(get_register_data(instruction.rs())) };
 	int64_t result { rs_data + static_cast<int>(instruction.imm16_se()) };
 
-	// TODO: Throw an Integer Overflow exception
 	if (result > std::numeric_limits<uint32_t>::max()) {
 		exception(Exception::arithmetic_overflow);
 		return;
 	}
 	
-	set_register(instruction.rt(), result);
+	set_register(instruction.rt(), static_cast<uint32_t>(result));
 }
 
 void Cpu::op_bne(const Instruction& instruction) {
@@ -738,14 +736,7 @@ void Cpu::op_lui(const Instruction& instruction) {
 }
 
 void Cpu::op_sw(const Instruction& instruction) {
-	// Cache is isolated
-	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
-		std::cout << "cache isolated\n";
-		return;
-	}
-	
 	uint32_t address { get_register_data(instruction.base()) + instruction.imm16_se() };
-
 	if (address % 4 != 0) {
 		exception(Exception::store_address_error);
 		return;

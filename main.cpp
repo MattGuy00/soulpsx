@@ -1,10 +1,8 @@
 #include "Bios.h"
 #include "Bus.h"
-#include "Ram.h"
 #include "Cpu.h"
 #include "Dependencies/imgui/imgui.h"
 #include "Dependencies/imgui/imgui_impl_sdl3.h"
-#include "Dependencies/imgui/imgui_impl_sdlrenderer3.h"
 
 #include <SDL3/SDL.h>
 
@@ -30,6 +28,13 @@ int main() {
 			} else if (event.type == SDL_EVENT_KEY_DOWN) {
 				if (event.key.key == SDLK_P) {
 					pause = !pause;
+				}
+				if (event.key.key == SDLK_RIGHT) {
+					if (pause) {
+						system->pause(false);
+						system->run();
+						system->pause(true);
+					}
 				}
 			}
 		}

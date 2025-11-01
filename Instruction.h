@@ -148,11 +148,11 @@ public:
 	explicit Instruction(uint32_t data) : m_data { data }, m_opcode { determine_opcode(data) } {}
 	
 	Register rs() const { return static_cast<Register>((m_data >> 21) & 0b11111); }
+	Register base() const { return static_cast<Register>((m_data >> 21) & 0b11111); }
 	Register rt() const { return static_cast<Register>((m_data >> 16) & 0b11111); }
 	Register rd() const { return static_cast<Register>((m_data >> 11) & 0b11111); }
 	Cop0_Register cop0_rd() const { return static_cast<Cop0_Register>((m_data >> 11) & 0b11111); }
-	Register base() const { return static_cast<Register>((m_data >> 21) & 0b11111); }
-	
+
 	uint32_t sa() const { return (m_data >> 6) & 0b11111; }
 
 	uint32_t imm16() const { return m_data & 0xffff; }
