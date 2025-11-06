@@ -173,10 +173,9 @@ public:
 	uint32_t data() const { return m_data; }
 	std::string as_hex() const;
 
-	std::string_view as_string() const { return m_str_representation; }
-	void to_string(uint32_t pc);
+	std::string to_string();
 
-	void instruction_to_string(const std::vector<std::string_view> &values);
+	std::string instruction_to_string(const std::vector<std::string_view> &values);
 	static std::string_view cop0_register_name(Cop0_Register reg) {
 		using enum Cop0_Register;
 		switch (reg) {
@@ -243,7 +242,7 @@ public:
 private:
 	uint32_t m_data {};
 	Opcode m_opcode {};
-	std::string m_str_representation {};
+	uint32_t m_pc {};
 
 	Instruction::Opcode determine_opcode(uint32_t data);
 };

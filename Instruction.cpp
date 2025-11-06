@@ -10,7 +10,8 @@
 Instruction::Instruction(std::span<const std::byte> data, uint32_t pc) {
 	memcpy(&m_data, data.data(), sizeof(int));
 	m_opcode = determine_opcode(m_data);
-	to_string(pc);
+	m_pc = pc;
+	//to_string(pc);
 }
 
 Instruction::Instruction() {
@@ -178,7 +179,7 @@ std::string Instruction::as_hex() const {
 	return ss.str();
 }
 
-void Instruction::to_string(uint32_t pc) {
+std::string Instruction::to_string() {
     switch (opcode()) {
         case Instruction::Opcode::add:
         case Instruction::Opcode::addu:
@@ -189,7 +190,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::or_b:
         case Instruction::Opcode::Xor:
         case Instruction::Opcode::nor: {
-            instruction_to_string({
+            return instruction_to_string({
 	            register_name(rd()),
                 register_name(rs()),
                 register_name(rt()),
@@ -199,7 +200,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::sllv:
         case Instruction::Opcode::srlv:
         case Instruction::Opcode::srav: {
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rd()),
                 register_name(rt()),
                 register_name(rs()),
@@ -212,7 +213,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::ori: {
             std::stringstream value_as_hex;
             value_as_hex << "0x" << std::hex << imm16_se();
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rt()),
                 register_name(rs()),
                 value_as_hex.str()
@@ -223,7 +224,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::sltiu: {
             std::stringstream value_as_hex;
             value_as_hex << "0x" << std::hex << imm16_se();
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rt()),
                 register_name(rs()),
                 value_as_hex.str()
@@ -235,7 +236,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::sra: {
             std::stringstream value_as_hex;
             value_as_hex << "0x" << std::hex << imm16_se();
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rd()),
                 register_name(rt()),
                 value_as_hex.str()
@@ -245,7 +246,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::lui: {
             std::stringstream value_as_hex;
             value_as_hex << "0x" << std::hex << imm16_se();
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rt()),
                 value_as_hex.str()
             });
@@ -254,7 +255,7 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::multu:
         case Instruction::Opcode::div:
         case Instruction::Opcode::divu: {
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rs()),
                 register_name(rt())
             });
@@ -262,14 +263,14 @@ void Instruction::to_string(uint32_t pc) {
         }
         case Instruction::Opcode::mfhi:
         case Instruction::Opcode::mflo: {
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rd()),
             });
             break;
         }
         case Instruction::Opcode::mthi:
         case Instruction::Opcode::mtlo: {
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rs()),
             });
             break;
@@ -277,22 +278,22 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::jump:
         case Instruction::Opcode::jal: {
             std::stringstream value_as_hex;
-        	uint32_t addr { (pc & 0xf0000000) | jump_addr() << 2 };
+        	uint32_t addr { (m_pc & 0xf0000000) | jump_addr() << 2 };
         	Bus::to_physical_address(addr);
         	value_as_hex << "0x" << std::hex << addr;
-            instruction_to_string( {
+            return instruction_to_string( {
                 value_as_hex.str()
             });
             break;
         }
         case Instruction::Opcode::jr: {
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rs()),
             });
             break;
         }
         case Instruction::Opcode::jalr: {
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rd()),
                 register_name(rs()),
             });
@@ -302,9 +303,9 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::bne: {
             std::stringstream value_as_hex;
         	uint32_t offset { imm16_se() << 2 };
-        	uint32_t addr { pc + offset +  4 };
+        	uint32_t addr { m_pc + offset +  4 };
             value_as_hex << "0x" << std::hex << addr;
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rs()),
                 register_name(rt()),
                 value_as_hex.str()
@@ -316,16 +317,16 @@ void Instruction::to_string(uint32_t pc) {
         case Instruction::Opcode::bgtz:
         case Instruction::Opcode::blez: {
             std::stringstream value_as_hex;
-        	uint32_t addr { pc + (imm16_se() << 2) };
+        	uint32_t addr { m_pc + (imm16_se() << 2) };
         	value_as_hex << "0x" << std::hex << addr;
-            instruction_to_string( {
+            return instruction_to_string( {
             register_name(rs()),
                 value_as_hex.str()
             });
             break;
         }
         case Instruction::Opcode::syscall: {
-            instruction_to_string( {});
+            return instruction_to_string( {});
             break;
         }
         case Instruction::Opcode::lb:
@@ -343,7 +344,7 @@ void Instruction::to_string(uint32_t pc) {
             load_address += "(";
             load_address += register_name(rs());
             load_address += ")";
-            instruction_to_string( {
+            return instruction_to_string( {
                 register_name(rt()),
                 load_address
             });
@@ -351,7 +352,7 @@ void Instruction::to_string(uint32_t pc) {
         }
         case Instruction::Opcode::mfc0:
         case Instruction::Opcode::mtc0: {
-            instruction_to_string( {
+            return instruction_to_string( {
                 cop0_register_name((Cop0_Register)rt()),
                 register_name(rd())
             });
@@ -359,7 +360,7 @@ void Instruction::to_string(uint32_t pc) {
         }
         case Instruction::Opcode::rfe:
         case Instruction::Opcode::unknown: {
-            instruction_to_string( {});
+            return instruction_to_string( {});
             break;
         }
     }
@@ -367,13 +368,14 @@ void Instruction::to_string(uint32_t pc) {
 
 // Helper function that takes an instruction name and the registers to modify, or immediate values as strings
 // and prepares them for printing.
-void Instruction::instruction_to_string(const std::vector<std::string_view>& values) {
-	m_str_representation = opcode_as_string().data();
-	m_str_representation += " ";
+std::string Instruction::instruction_to_string(const std::vector<std::string_view> &values) {
+	std::string str_representation = opcode_as_string().data();
+	str_representation += " ";
 	for (int i = 0; i < values.size(); i++) {
-		m_str_representation += values[i];
+		str_representation += values[i];
 		if (i != values.size() - 1) {
-			m_str_representation += ", ";
+			str_representation += ", ";
 		}
 	}
+	return str_representation;
 }
