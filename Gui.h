@@ -16,7 +16,6 @@ class Cpu;
 
 class Gui {
 public:
-   Gui(std::string_view title, int width, int height);
    Gui(std::shared_ptr<System>, int width, int height);
    ~Gui();
 
@@ -38,13 +37,12 @@ private:
    std::shared_ptr<System> m_system;
 
    std::vector<Instruction> m_disassembled_instructions {};
-   Region m_disassembled_memory_region { Region::unknown };
+   std::unordered_map<uint32_t, std::pair<std::string, std::string>> m_executed_instructions {};
+   std::deque<uint32_t> m_instructions_to_render {};
    uint32_t last_pc {};
    ImVec4 addr_colour = ImVec4{0, 80, 200, 1};
 
-   std::deque<Instruction> m_executed_instructions;
    void disassemble_memory(std::span<const std::byte> memory);
-   void render_disassembler();
-   std::string instruction_as_string(const Instruction& instruction) const;
-   std::string instruction_to_string(std::string_view instruction_name, const std::vector<std::string_view>& values) const;
+   void render_executed_instructions();
+   void render_cpu_registers() const;
 };
