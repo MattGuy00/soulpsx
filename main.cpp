@@ -1,3 +1,5 @@
+#include <thread>
+
 #include "Bios.h"
 #include "Bus.h"
 #include "Cpu.h"
@@ -7,14 +9,15 @@
 #include <SDL3/SDL.h>
 
 #include "Gui.h"
+#include "Logger.h"
 #include "System.h"
 
 int main() {
 	auto system { std::make_shared<System>() };
-	Gui gui { system, 1280, 720 };
-	if (gui.init_failed()) {
-		return EXIT_FAILURE;
-	}
+	// Gui gui { system, 1280, 720 };
+	// if (gui.init_failed()) {
+	// 	return EXIT_FAILURE;
+	// }
 
 	bool quit = false;
 	bool pause = false;
@@ -39,12 +42,12 @@ int main() {
 			}
 		}
 
+		// system->pause(pause);
 		system->run();
-
-		gui.render();
-		system->pause(pause);
+		// if (!pause) {
+		// 	gui.render();
+		// }
 	}
-
 
 	return 0;
 }
