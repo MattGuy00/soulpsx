@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <iostream>
 
 namespace ANSI_Colours {
     static std::string reset { "\033[0m" };
@@ -36,7 +37,9 @@ public:
         if (level < m_min_level) return;
 
         const auto timestamp = std::chrono::system_clock::now();
-        m_entries.emplace_back(Entry{ level, std::move(message), timestamp });
+        Entry entry { level, std::move(message), timestamp };
+        m_entries.emplace_back(entry);
+        std::cout << entry;
 
         if (m_entries.size() > m_max_entries) {
             m_entries.erase(m_entries.begin(), m_entries.begin() + 100);
