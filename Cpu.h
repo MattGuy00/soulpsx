@@ -20,7 +20,6 @@ public:
 	uint32_t cop0_get_register_data(Cop0_Register reg) const;
 
 	Instruction get_current_instruction() const { return m_current_instruction; }
-	Region get_current_memory_region() const { return m_current_read_region; }
 
 	uint32_t get_pc() const { return m_pc; }
 	uint32_t get_next_pc() const { return m_next_pc; }
@@ -47,7 +46,6 @@ private:
 	uint32_t m_lo {};
 
 	Instruction m_current_instruction {};
-	Region m_current_read_region {};
 
 	std::span<const std::byte> read_memory(uint32_t address, uint32_t bytes);
 	void write_memory(uint32_t address, std::span<const std::byte> data);

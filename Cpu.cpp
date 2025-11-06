@@ -9,6 +9,8 @@
 #include <optional>
 #include <span>
 
+#include "Logger.h"
+
 void Cpu::fetch_decode_execute() {
 	m_current_pc = m_pc;
 	if (m_current_pc % 4 != 0) {
@@ -16,7 +18,6 @@ void Cpu::fetch_decode_execute() {
 		return;
 	}
 
-	m_current_read_region = m_bus.get_region(m_pc);
 	m_current_instruction = Instruction(read_memory(m_pc, 4), m_pc);
 
 	m_pc = m_next_pc;
@@ -58,7 +59,7 @@ void Cpu::fetch_decode_execute() {
 		}
 		case Xor: {
 			op_xor(m_current_instruction);
-			return;
+			// std::exit(1);
 			break;
 		}
 		case addiu: {
@@ -246,7 +247,10 @@ void Cpu::fetch_decode_execute() {
 			break;
 		}
 		case unknown: {
-			return;
+			std::stringstream ss;
+			ss << "[CPU] Unknown instruction: 0x" << std::hex << m_current_instruction.data();
+			Logger::log(Logger::Level::error, ss.str());
+			std::exit(1);
 		}
 	}
 
@@ -280,7 +284,7 @@ std::span<const std::byte> Cpu::read_memory(uint32_t address, uint32_t bytes) {
 void Cpu::write_memory(uint32_t address, std::span<const std::byte> data) {
 	// Cache is isolated
 	if ((cop0_get_register_data(Cop0_Register::sr) & 0x10000) != 0) {
-		std::cout << "cache isolated\n";
+		Logger::log(Logger::Level::warning, "[CPU] Cache isolated: Ignoring write");
 		return;
 	}
 	m_bus.write_memory(address, data);
@@ -289,7 +293,6 @@ void Cpu::write_memory(uint32_t address, std::span<const std::byte> data) {
 uint32_t to_32(std::span<const std::byte> data) {
 	uint32_t word {};
 	std::memcpy(&word, data.data(), sizeof(word));
-
 	return word;
 }
 
@@ -321,7 +324,7 @@ void Cpu::load_delay_data(Register reg, uint32_t data) {
 void Cpu::exception(Exception excode) {
 	uint32_t sr { cop0_get_register_data(Cop0_Register::sr) };
 	// Find exception handler address based on BEV bit
-	uint32_t handler { 0xbfc00180 ? (sr & (1 << 22)) : 0x80000080 };
+	uint32_t handler { (sr & (1 << 22)) ? 0xbfc00180 : 0x80000080 };
 
 	uint32_t mode { sr & 0x3f };
 	sr &= ~0x3f;
@@ -442,7 +445,7 @@ void Cpu::op_rfe(const Instruction& instruction) {
 	// sr |= status_bits;
 
 	auto mode { sr & 0x3f };
-	sr &= !0x3f;
+	sr &= ~0x3f;
 	sr |= mode >> 2;
 
 	cop0_set_register(Cop0_Register::sr, sr);
@@ -510,22 +513,22 @@ void Cpu::op_mflo(const Instruction& instruction) {
 }
 
 void Cpu::op_div(const Instruction& instruction) {
-	int rs_data { static_cast<int>(get_register_data(instruction.rs())) };
-	int divisor { static_cast<int>(get_register_data(instruction.rt())) };
+	int numerator { static_cast<int>(get_register_data(instruction.rs())) };
+	int denominator { static_cast<int>(get_register_data(instruction.rt())) };
 	
-	if (divisor == 0) {
-		m_hi = static_cast<uint32_t>(rs_data);
-		if (rs_data >= 0) {
+	if (denominator == 0) {
+		m_hi = static_cast<uint32_t>(numerator);
+		if (numerator >= 0) {
 			m_lo = std::numeric_limits<uint32_t>::max();
 		} else {
 			m_lo = 1;
 		}
-	} else if (divisor == -1 && (uint32_t)rs_data == 0x80000000) {
+	} else if (denominator == std::numeric_limits<uint32_t>::max() && numerator == 0x80000000) {
 		m_lo = 0x80000000;
 		m_hi = 0;
 	} else {
-		m_lo = static_cast<uint32_t>(rs_data / divisor);
-		m_hi = static_cast<uint32_t>(rs_data % divisor);
+		m_lo = static_cast<uint32_t>(numerator / denominator);
+		m_hi = static_cast<uint32_t>(numerator % denominator);
 	}
 }
 
@@ -679,6 +682,7 @@ void Cpu::op_lw(const Instruction& instruction) {
 		exception(Exception::load_address_error);
 		return;
 	}
+
 
 	load_delay_data(instruction.rt(), to_32(read_memory(address, 4)));
 }
